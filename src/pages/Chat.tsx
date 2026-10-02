@@ -65,6 +65,13 @@ import {
 } from "@/lib/composer";
 import { REACTION_EMOJI } from "@contracts/reactions";
 import {
+  avatarInitial,
+  contactsNotInConversation,
+  conversationMatchesQuery,
+  isGroupOwner as callerIsGroupOwner,
+  otherDirectMemberId,
+} from "@/lib/chat-display";
+import {
   ALLOWED_MIME_TYPES,
   MAX_ATTACHMENT_BYTES,
   formatBytes,
@@ -713,26 +720,31 @@ export default function Chat() {
   };
 
   const filteredConversations = conversations?.filter((conv) =>
-    conv.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+    conversationMatchesQuery(conv.displayName, searchQuery)
   );
 
   const isUserOnline = (userId: number) => onlineUsers.has(userId);
 
   // F-8. Blocking is a person-to-person act, so it is only offered on a direct
   // conversation — there is no single "other member" of a group to block.
-  const otherMemberId =
-    activeConversation?.type === "direct"
-      ? (activeConversation.participants.find((p) => p.userId !== user?.id)?.userId ??
-        null)
-      : null;
+  const otherMemberId = otherDirectMemberId(
+    activeConversation?.type,
+    activeConversation?.participants,
+    user?.id,
+  );
   const isOtherMemberBlocked =
     otherMemberId !== null &&
     (blockedContacts ?? []).some((b) => b.contactUserId === otherMemberId);
 
   const isGroup = activeConversation?.type === "group";
-  const isGroupOwner = isGroup && activeConversation?.createdBy === user?.id;
-  const contactsNotInGroup = (contacts ?? []).filter(
-    (c) => !activeConversation?.participants.some((p) => p.userId === c.contactUserId)
+  const isGroupOwner = callerIsGroupOwner(
+    activeConversation?.type,
+    activeConversation?.createdBy,
+    user?.id,
+  );
+  const contactsNotInGroup = contactsNotInConversation(
+    contacts ?? [],
+    activeConversation?.participants,
   );
 
   return (
@@ -811,7 +823,7 @@ export default function Chat() {
                   <Avatar className="w-12 h-12">
                     <AvatarImage src={conv.displayAvatar || undefined} />
                     <AvatarFallback className="bg-primary/20 text-primary">
-                      {conv.displayName?.charAt(0).toUpperCase() || "?"}
+                      {avatarInitial(conv.displayName)}
                     </AvatarFallback>
                   </Avatar>
                   {conv.type === "direct" &&
@@ -999,7 +1011,7 @@ export default function Chat() {
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={activeConversation.displayAvatar || undefined} />
                   <AvatarFallback className="bg-primary/20 text-primary">
-                    {activeConversation.displayName?.charAt(0).toUpperCase()}
+                    {avatarInitial(activeConversation.displayName, "")}
                   </AvatarFallback>
                 </Avatar>
                 {activeConversation.type === "direct" &&
@@ -1276,7 +1288,7 @@ export default function Chat() {
                           <Avatar className="w-7 h-7 flex-shrink-0">
                             <AvatarImage src={msg.senderAvatar || undefined} />
                             <AvatarFallback className="text-[10px] bg-primary/20">
-                              {msg.senderName?.charAt(0).toUpperCase()}
+                              {avatarInitial(msg.senderName, "")}
                             </AvatarFallback>
                           </Avatar>
                         ) : (
@@ -1644,7 +1656,7 @@ export default function Chat() {
                             <Avatar className="w-7 h-7">
                               <AvatarImage src={p.userAvatar || undefined} />
                               <AvatarFallback className="text-[10px] bg-primary/20">
-                                {p.userName?.charAt(0).toUpperCase() || "?"}
+                                {avatarInitial(p.userName)}
                               </AvatarFallback>
                             </Avatar>
                             <span className="flex-1 text-sm truncate">
