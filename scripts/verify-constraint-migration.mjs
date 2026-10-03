@@ -100,12 +100,24 @@ if (!constraintMigration) {
   process.exit(2);
 }
 
-// ── Case 1: dirty data that the runbook can remediate ──────────────────────
+// 0002 creates exactly these FOREIGN KEY clauses. Later migrations add their
+// own keys, so the probe asserts this delta, not a schema-wide total.
+const CONSTRAINT_MIGRATION_FK_DELTA = 10;
+
+// ── Case 1: dirty data that the runbook can remediate ────────────────────────
 console.log("\nCase 1 — duplicates and auto-remediable orphans");
 await freshScratch();
 {
   const db = await connect(SCRATCH);
   for (const file of base) await apply(db, file);
+
+  const countForeignKeys = async () => {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) c FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE()`
+    );
+    return Number(rows[0].c);
+  };
+  const fksBeforeConstraintMigration = await countForeignKeys();
 
   await db.query(
     `INSERT INTO users (unionId, name) VALUES ('u1','Alice'),('u2','Bob'),('u3','Carol')`
@@ -160,10 +172,15 @@ await freshScratch();
   );
   check("dangling replyToId set to NULL", dangling[0]?.replyToId, null);
 
-  const [fks] = await db.query(
-    `SELECT COUNT(*) c FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE()`
+  // Delta, not an absolute total. `base` is every migration except 0002, so
+  // later FK-bearing tables change the schema-wide count without changing
+  // what 0002 is responsible for. CI on main reported 17 total against a
+  // hardcoded 11.
+  check(
+    "foreign keys created by the constraint migration",
+    (await countForeignKeys()) - fksBeforeConstraintMigration,
+    CONSTRAINT_MIGRATION_FK_DELTA
   );
-  check("foreign keys created", Number(fks[0].c), 11);
 
   // Re-running must be a no-op, not an error.
   try {
@@ -208,7 +225,7 @@ await freshScratch();
   await db.end();
 }
 
-// ── Cleanup ────────────────────────────────────────────────────────────────
+// ── Cleanup ────────────────────────────────────────────────────────────
 {
   const root = await connect(null);
   await root.query(`DROP DATABASE IF EXISTS \`${SCRATCH}\``);
