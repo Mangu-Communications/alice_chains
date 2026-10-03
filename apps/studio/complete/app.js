@@ -47,7 +47,15 @@ function person(id) { return PEOPLE[id]; }
 function room() { return S.rooms.find(r => r.id === S.roomId) || S.rooms[0]; }
 function threadAll() { return S.messages.filter(m => m.convId === S.roomId && !m.deleted); }
 function visibleThread() { const all = threadAll(); const extra = S.pageOffset[S.roomId] || 0; const recent = all.filter(m => !m.older); const older = all.filter(m => m.older); return { olderLeft: Math.max(0, older.length - extra), items: [...older.slice(Math.max(0, older.length - extra)), ...recent] }; }
-function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&","<":"<",">":">",'"':""","'":"&#39;" }[c])); }
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "\u0026amp;",
+    "<": "\u0026lt;",
+    ">": "\u0026gt;",
+    '"': "\u0026quot;",
+    "'": "\u0026#39;",
+  })[c]);
+}
 function linkify(text) { return esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'); }
 function setRoom(id) { S.roomId = id; S.mobile = "thread"; S.overlay = null; S.rooms = S.rooms.map(r => r.id === id ? { ...r, unread:0 } : r); persist(); render(); queueMicrotask(() => document.getElementById("end")?.scrollIntoView({ block:"end" })); }
 function send(override, kind="text") {
