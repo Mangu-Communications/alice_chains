@@ -145,6 +145,29 @@ describeIntegration("conversation recency and unread counts (S-11)", () => {
     expect(row.latestMessage).toBeNull();
   });
 
+  it("does not count messages sent before a member joined", async () => {
+    const carol = await createUser({ name: "Carol" });
+    const conv = await createConversation([alice.id, bob.id], {
+      type: "group",
+      name: "G",
+      createdBy: alice.id,
+    });
+    await createMessage(conv, bob.id, "before carol");
+    await tick();
+    await caller(alice).conversation.addParticipants({
+      conversationId: conv,
+      userIds: [carol.id],
+    });
+
+    expect((await caller(carol).conversation.list())[0].unreadCount).toBe(0);
+
+    await tick();
+    await createMessage(conv, bob.id, "after carol");
+    expect((await caller(carol).conversation.list())[0].unreadCount).toBe(1);
+    // Bob sent both, so neither is unread for him.
+    expect((await caller(bob).conversation.list())[0].unreadCount).toBe(0);
+  });
+
   it("counts per member, not globally", async () => {
     const carol = await createUser({ name: "Carol" });
     const conv = await createConversation([alice.id, bob.id, carol.id], {
