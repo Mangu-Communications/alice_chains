@@ -107,6 +107,9 @@ export const conversationParticipants = mysqlTable(
     userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
     joinedAt: timestamp("joinedAt").defaultNow().notNull(),
     lastReadAt: timestamp("lastReadAt", { fsp: 3 }),
+    // P-UX-1. Per-member, not per conversation: one person can mute a room
+    // the others still want. Default all keeps existing rows notifying.
+    notifyLevel: mysqlEnum("notifyLevel", ["all", "mentions", "off"]).default("all").notNull(),
   },
   (t) => [
     uniqueIndex("cp_conversation_user_uq").on(t.conversationId, t.userId), // UQ-1

@@ -233,6 +233,15 @@ export default function Chat() {
   });
 
   const utils = trpc.useUtils();
+
+  const setNotifyLevel = trpc.conversation.setNotifyLevel.useMutation({
+    onSuccess: () => {
+      utils.conversation.list.invalidate();
+      utils.conversation.getById.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
   const createUpload = trpc.attachment.createUpload.useMutation();
   const completeUpload = trpc.attachment.complete.useMutation();
   const sendWithAttachment = trpc.message.send.useMutation({
@@ -850,11 +859,42 @@ export default function Chat() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {/*
-                      F-8. "Block User" now blocks. "View Profile" and "Mute
-                      Notifications" were stubs that did nothing when clicked;
-                      they are gone until the tasks that own them ship, because
-                      a control that lies is worse than one that is absent.
+                      P-UX-1. Mute is a real preference now: all, mentions, or
+                      off for this conversation only.
                     */}
+                    <DropdownMenuItem
+                      disabled={setNotifyLevel.isPending}
+                      onClick={() =>
+                        setNotifyLevel.mutate({
+                          conversationId: activeConversation.id,
+                          level: "all",
+                        })
+                      }
+                    >
+                      {activeConversation.notifyLevel === "all" ? "✓ " : ""}All messages
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={setNotifyLevel.isPending}
+                      onClick={() =>
+                        setNotifyLevel.mutate({
+                          conversationId: activeConversation.id,
+                          level: "mentions",
+                        })
+                      }
+                    >
+                      {activeConversation.notifyLevel === "mentions" ? "✓ " : ""}Mentions only
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={setNotifyLevel.isPending}
+                      onClick={() =>
+                        setNotifyLevel.mutate({
+                          conversationId: activeConversation.id,
+                          level: "off",
+                        })
+                      }
+                    >
+                      {activeConversation.notifyLevel === "off" ? "✓ " : ""}Notifications off
+                    </DropdownMenuItem>
                     {isGroup && (
                       <DropdownMenuItem
                         onClick={() => {
