@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/mysql-core";
 import { createRouter, authedQuery, rateLimited } from "./middleware";
 import { Limits } from "./lib/rate-limit";
@@ -135,6 +135,10 @@ export const messageRouter = createRouter({
         conversationId: z.number(),
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
+        // H-9. Exclusive keyset cursor: ids strictly below the oldest id the
+        // client already has. Omitted on the first page, which stays the
+        // latest `limit` messages. `offset` remains for existing callers.
+        cursor: z.number().int().positive().nullish(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -175,7 +179,12 @@ export const messageRouter = createRouter({
         .leftJoin(users, eq(messages.senderId, users.id))
         .leftJoin(parentMessage, eq(messages.replyToId, parentMessage.id))
         .leftJoin(parentSender, eq(parentMessage.senderId, parentSender.id))
-        .where(eq(messages.conversationId, input.conversationId))
+        .where(
+          and(
+            eq(messages.conversationId, input.conversationId),
+            input.cursor != null ? lt(messages.id, input.cursor) : undefined
+          )
+        )
         // FR-MSG-11. `createdAt` alone is not a deterministic order: MySQL
         // TIMESTAMP here has one-second resolution, so messages sent within the
         // same second sorted arbitrarily and could swap places between two

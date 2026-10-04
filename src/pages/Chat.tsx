@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
@@ -22,6 +22,11 @@ import { MessageThread } from "@/pages/chat/MessageThread";
 import { MessageComposer } from "@/pages/chat/MessageComposer";
 import { GroupSettingsDialog } from "@/pages/chat/GroupSettingsDialog";
 import { COMPOSER_MAX_HEIGHT } from "@/pages/chat/composer-display";
+import {
+  flattenMessagePages,
+  MESSAGE_PAGE_SIZE,
+  nextOlderCursor,
+} from "@/pages/chat/message-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -125,11 +130,25 @@ export default function Chat() {
     { enabled: !!activeConversationId }
   );
 
-  const { data: messages, refetch: refetchMessages } =
-    trpc.message.listByConversation.useQuery(
-      { conversationId: activeConversationId!, limit: 50 },
-      { enabled: !!activeConversationId }
-    );
+  // H-9. First page is still the latest 50 (no cursor). Older pages use the
+  // oldest loaded id as an exclusive cursor. `refetch` still refreshes pages.
+  const {
+    data: messagePages,
+    refetch: refetchMessages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = trpc.message.listByConversation.useInfiniteQuery(
+    { conversationId: activeConversationId!, limit: MESSAGE_PAGE_SIZE },
+    {
+      enabled: !!activeConversationId,
+      getNextPageParam: (lastPage) => nextOlderCursor(lastPage, MESSAGE_PAGE_SIZE),
+    }
+  );
+  const messages = useMemo(
+    () => (messagePages ? flattenMessagePages(messagePages.pages) : undefined),
+    [messagePages]
+  );
 
   // F-1. Opening a conversation clears its badge. This writes
   // `conversation_participants.lastReadAt`, which is what `conversation.list`
@@ -497,10 +516,12 @@ export default function Chat() {
     };
   }, [socket]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom when the newest message changes, not when an older page
+  // is prepended — otherwise "Load older" would jump the member back down.
+  const newestMessageId = messages?.[messages.length - 1]?.id;
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [newestMessageId, activeConversationId]);
 
   // ── P-UX-4 · going to a message ─────────────────────────────────────────
   // A jump is queued rather than performed, because the target is often in a
@@ -520,9 +541,8 @@ export default function Chat() {
     setPendingJumpId(null);
 
     if (!node) {
-      // The thread renders the most recent 50 messages, so a hit from further
-      // back is simply not on the page. Saying so beats a click that appears
-      // to do nothing.
+      // A hit outside the pages loaded so far is not in the DOM yet. Saying
+      // so beats a click that appears to do nothing; Load older can reach it.
       toast.info(t("media.messageNotLoaded"));
       return;
     }
@@ -1033,6 +1053,11 @@ export default function Chat() {
               onDelete={(messageId) => {
                 setPendingDeleteId(messageId);
                 deleteMessage.mutate({ messageId });
+              }}
+              hasOlder={Boolean(hasNextPage)}
+              loadingOlder={isFetchingNextPage}
+              onLoadOlder={() => {
+                void fetchNextPage();
               }}
             />
 
