@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { t } from "@/i18n";
+import { applyTheme, resolveTheme, THEME_COLORS, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_AVATAR_BYTES,
@@ -29,6 +30,13 @@ export default function Settings() {
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      return resolveTheme(localStorage.getItem(THEME_STORAGE_KEY));
+    } catch {
+      return resolveTheme(null);
+    }
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Seeded once the profile arrives, not on every render, so typing is not
@@ -44,6 +52,17 @@ export default function Settings() {
     utils.auth.me.invalidate();
     utils.conversation.list.invalidate();
   };
+
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    applyTheme(next, document.documentElement);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[next]);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // Private mode can block storage; the class swap still applies this visit.
+    }
+  }
 
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -231,6 +250,31 @@ export default function Settings() {
                 >
                   {updateProfile.isPending ? "Saving…" : "Save changes"}
                 </Button>
+              </section>
+
+              <section className="space-y-3 pt-4 border-t border-border">
+                <h2 className="text-sm font-semibold">Appearance</h2>
+                <p className="text-xs text-muted-foreground">
+                  Switches colour tokens only. Layout stays the same. Dark is the default.
+                </p>
+                <div className="flex gap-2" role="group" aria-label="Colour theme">
+                  <Button
+                    type="button"
+                    variant={theme === "light" ? "default" : "secondary"}
+                    aria-pressed={theme === "light"}
+                    onClick={() => chooseTheme("light")}
+                  >
+                    Light
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={theme === "dark" ? "default" : "secondary"}
+                    aria-pressed={theme === "dark"}
+                    onClick={() => chooseTheme("dark")}
+                  >
+                    Dark
+                  </Button>
+                </div>
               </section>
 
               <section className="space-y-3 pt-4 border-t border-border">
