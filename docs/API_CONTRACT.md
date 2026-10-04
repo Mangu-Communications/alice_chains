@@ -282,11 +282,12 @@ Sets `conversation_participants.lastReadAt = NOW()` for `(conversationId, ctx.us
 | Type | query · **Auth** authed · **Defined** `api/message-router.ts:13` |
 
 ```ts
-// Input (:15-19)
+// Input
 z.object({
   conversationId: z.number(),
   limit:  z.number().min(1).max(100).default(50),
   offset: z.number().min(0).default(0),
+  cursor: z.number().int().positive().nullish(), // exclusive older-than id
 })
 ```
 
@@ -309,7 +310,7 @@ z.object({
 
 **`readBy` is wrong for all but one message per page.** The receipt query at `:68` compiles to `messageId IN (?)` with a single joined-string parameter, so MySQL coerces `'11,12,13'` to `11` and matches only the first id (see `DATA_MODEL.md` §6.3). The double-tick indicator at `src/pages/Chat.tsx:471` is therefore unreliable. Track as **S-MSG-READS**.
 
-`offset` pagination is unstable under concurrent inserts; the intended replacement is a keyset cursor (`DATA_MODEL.md` §6.2) — a **breaking** input change.
+`offset` remains for existing callers and is still unstable under concurrent inserts. H-9 adds an optional exclusive keyset `cursor` (message id): omit it for the latest page; pass the oldest loaded id to fetch older rows (`id < cursor`). Output stays an ascending array, so this is not a breaking change. The client uses `cursor` and does not send `offset`.
 
 ### 2.9 `message.send`
 

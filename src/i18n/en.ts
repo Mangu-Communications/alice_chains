@@ -114,6 +114,8 @@ export const en = {
   "media.emptyHint": "Photos and files sent in this conversation collect here.",
   "media.messageNotLoaded":
     "That message is further back than the part of the conversation loaded here.",
+  "thread.loadOlder": "Load older messages",
+  "thread.loadingOlder": "Loading older messages",
 } as const;
 
 export type MessageKey = keyof typeof en;

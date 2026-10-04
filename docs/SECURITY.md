@@ -348,7 +348,7 @@ GET {authorize}
 
 | Input | Schema | Line |
 |---|---|---|
-| `message.listByConversation` | `conversationId:number`, `limit:1..100 = 50`, `offset:>=0 = 0` | `api/message-router.ts:15-19` |
+| `message.listByConversation` | `conversationId:number`, `limit:1..100 = 50`, `offset:>=0 = 0`, `cursor?: positive int` (exclusive) | `api/message-router.ts` |
 | `message.send` | `content: string().min(1).max(4000)`, `type: enum(text\|image\|file)`, `fileUrl?: string`, `replyToId?: number` | `api/message-router.ts:87-93` |
 | `message.markAsRead` | `messageIds: number[]` (no length cap) | `api/message-router.ts:136` |
 | `conversation.getById` / `markAsRead` | `{ id \| conversationId: number }` | `api/conversation-router.ts:107,246` |

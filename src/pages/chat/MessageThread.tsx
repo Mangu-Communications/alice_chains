@@ -102,6 +102,10 @@ export type MessageThreadProps = {
   onReact: (messageId: number, emoji: (typeof REACTION_EMOJI)[number]) => void;
   onStartEdit: (messageId: number, content: string) => void;
   onDelete: (messageId: number) => void;
+  /** H-9. Present only when another older page may exist. */
+  hasOlder?: boolean;
+  loadingOlder?: boolean;
+  onLoadOlder?: () => void;
 };
 
 export function MessageThread({
@@ -124,6 +128,9 @@ export function MessageThread({
   onReact,
   onStartEdit,
   onDelete,
+  hasOlder = false,
+  loadingOlder = false,
+  onLoadOlder,
 }: MessageThreadProps) {
   return (
     <ScrollArea className="flex-1 px-4">
@@ -133,6 +140,19 @@ export function MessageThread({
         "read new entries" behaviour work.
       */}
       <div className="py-4 space-y-1" role="log" aria-label="Messages">
+        {hasOlder && (
+          <div className="flex justify-center pb-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onLoadOlder}
+              disabled={loadingOlder || !onLoadOlder}
+            >
+              {loadingOlder ? t("thread.loadingOlder") : t("thread.loadOlder")}
+            </Button>
+          </div>
+        )}
         {messages?.map((msg, i) => {
           const previousSenderId = i === 0 ? undefined : messages[i - 1].senderId;
           const showAvatar = showSenderAvatar(msg.isMine, i, previousSenderId, msg.senderId);
