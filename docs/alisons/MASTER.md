@@ -942,7 +942,7 @@ Socket.IO 4 with namespace `/`. All events require an authenticated session cook
 | `participantAdded` | `{ conversationId, user }` | Member added to group |
 | `participantRemoved` | `{ conversationId, userId }` | Member removed from group |
 
-**Not yet implemented** (planned): `callOffer`, `callAnswer`, `callIceCandidate`, `callEnd`, `aliceInvoked`, `aliceCostUpdate`.
+**Not yet implemented** (planned): `aliceInvoked`, `aliceCostUpdate`. `callOffer`, `callAnswer`, `callIceCandidate`, and `callEnd` are relayed as of P-CALL-1; the call UI is still P-CALL-2.
 
 ### 10.4 Error codes
 

@@ -47,6 +47,35 @@ export const typingSchema = z.object({
   isTyping: z.boolean(),
 });
 
+/**
+ * P-CALL-1 signaling. SDP and ICE stay opaque strings: the server relays them
+ * and never parses media. `callId` is client-generated so answer, candidates,
+ * and hangup can be correlated without a calls table.
+ */
+const callId = z.string().trim().min(1).max(64);
+const callTarget = z.object({
+  conversationId: id,
+  callId,
+  targetUserId: id,
+});
+
+export const callOfferSchema = callTarget.extend({
+  sdp: z.string().min(1).max(32_000),
+  kind: z.enum(["audio", "video"]),
+});
+
+export const callAnswerSchema = callTarget.extend({
+  sdp: z.string().min(1).max(32_000),
+});
+
+export const callIceCandidateSchema = callTarget.extend({
+  candidate: z.string().min(1).max(4_096),
+});
+
+export const callEndSchema = callTarget.extend({
+  reason: z.enum(["hangup", "decline", "busy", "failed"]).optional(),
+});
+
 /** Every client-to-server event, so none can be added without a schema. */
 export const SOCKET_EVENT_SCHEMAS = {
   joinConversation: joinConversationSchema,
@@ -54,6 +83,10 @@ export const SOCKET_EVENT_SCHEMAS = {
   sendMessage: sendMessageSchema,
   markAsRead: markAsReadSchema,
   typing: typingSchema,
+  callOffer: callOfferSchema,
+  callAnswer: callAnswerSchema,
+  callIceCandidate: callIceCandidateSchema,
+  callEnd: callEndSchema,
 } as const;
 
 export type SocketEventName = keyof typeof SOCKET_EVENT_SCHEMAS;
