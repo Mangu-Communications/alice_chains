@@ -118,7 +118,7 @@ export const conversationRouter = createRouter({
     // runtime error.
     const rows = await db.execute(sql`
       WITH my AS (
-        SELECT conversationId, lastReadAt, notifyLevel
+        SELECT conversationId, lastReadAt, joinedAt, notifyLevel
         FROM conversation_participants
         WHERE userId = ${userId}
       ),
@@ -141,7 +141,11 @@ export const conversationRouter = createRouter({
                 WHERE um.conversationId = c.id
                   AND um.deletedAt IS NULL
                   AND um.senderId <> ${userId}
-                  AND um.createdAt > COALESCE(my.lastReadAt, '1970-01-02')) AS unreadCount
+                  -- P-UX-2. A null lastReadAt is "never opened", not "read
+                  -- nothing since 1970". History from before this member
+                  -- joined is not unread. Once they open the room, lastReadAt
+                  -- moves forward and is the floor.
+                  AND um.createdAt > COALESCE(my.lastReadAt, my.joinedAt, '1970-01-02')) AS unreadCount
       FROM conversations c
       JOIN my ON my.conversationId = c.id
       LEFT JOIN last_msg lm ON lm.conversationId = c.id AND lm.rn = 1
@@ -461,9 +465,19 @@ export const conversationRouter = createRouter({
       await assertUsersExist(invited, db);
       await assertNotBlocked(userId, invited, db);
 
+      // P-UX-2. Joining is not the same as having unread history. Stamp
+      // lastReadAt so messages already in the room stay read; anything sent
+      // after this insert still counts.
+      const joinedReadAt = new Date();
       await db
         .insert(conversationParticipants)
-        .values(invited.map((id) => ({ conversationId: input.conversationId, userId: id })));
+        .values(
+          invited.map((id) => ({
+            conversationId: input.conversationId,
+            userId: id,
+            lastReadAt: joinedReadAt,
+          }))
+        );
 
       await announceConversationChange(input.conversationId, db);
       return { added: invited };
