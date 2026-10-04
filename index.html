@@ -7,6 +7,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content="Alice Chains — a fast, self-hostable real-time messaging platform." />
     <title>Alice Chains</title>
+    <script>
+      try {
+        var stored = localStorage.getItem("alisons-theme");
+        var root = document.documentElement;
+        if (stored === "light") {
+          root.classList.remove("dark");
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", "#ffffff");
+        } else {
+          root.classList.add("dark");
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
