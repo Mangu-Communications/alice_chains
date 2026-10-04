@@ -2,12 +2,15 @@
  * Deciding who gets a notification for a new message.
  *
  * The rule is: every other member of the conversation who is not currently
- * connected. Someone with the app open already saw it arrive over the socket,
- * and a notification for a message they are looking at is noise.
+ * connected, and who has not turned this conversation down. Someone with the
+ * app open already saw it arrive over the socket, and a notification for a
+ * message they are looking at is noise.
  */
+import { eq } from "drizzle-orm";
+import { conversationParticipants, users } from "@db/schema";
+import { getDb } from "../../queries/connection";
 import { getOnlineUsers } from "../../socket";
 import { log } from "../logger";
-import { participantIds } from "../realtime";
 import { blockedWith } from "../authz";
 import { sendToUsers, pushIsConfigured } from "./send";
 
@@ -24,7 +27,30 @@ export interface MessageNotification {
 }
 
 /**
- * Notify the members who are not watching. Never throws.
+ * P-UX-1. A mention is `@` plus the member's display name, as a whole token.
+ * Names shorter than two characters are ignored so a single letter cannot
+ * match every message that happens to contain `@`.
+ */
+export function mentionsUser(content: string, name: string | null | undefined): boolean {
+  const trimmed = name?.trim();
+  if (!trimmed || trimmed.length < 2) return false;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)@${escaped}(?=$|[\\s.,!?])`, "i").test(content);
+}
+
+export function wantsNotification(
+  level: "all" | "mentions" | "off",
+  content: string,
+  name: string | null | undefined
+): boolean {
+  if (level === "off") return false;
+  if (level === "mentions") return mentionsUser(content, name);
+  return true;
+}
+
+/**
+ * Notify the members who are not watching and who still want this room.
+ * Never throws.
  *
  * Delivery failure must not fail the message that triggered it, so every error
  * is swallowed here rather than propagating into the send path.
@@ -34,14 +60,28 @@ export async function notifyNewMessage(input: MessageNotification): Promise<void
 
   try {
     const [members, blocked] = await Promise.all([
-      participantIds(input.conversationId),
+      getDb()
+        .select({
+          userId: conversationParticipants.userId,
+          notifyLevel: conversationParticipants.notifyLevel,
+          name: users.name,
+        })
+        .from(conversationParticipants)
+        .leftJoin(users, eq(users.id, conversationParticipants.userId))
+        .where(eq(conversationParticipants.conversationId, input.conversationId)),
       blockedWith(input.senderId),
     ]);
 
     const online = getOnlineUsers();
-    const recipients = members.filter(
-      (id) => id !== input.senderId && !online.has(id) && !blocked.has(id)
-    );
+    const recipients = members
+      .filter(
+        (member) =>
+          member.userId !== input.senderId &&
+          !online.has(member.userId) &&
+          !blocked.has(member.userId) &&
+          wantsNotification(member.notifyLevel, input.content, member.name)
+      )
+      .map((member) => member.userId);
 
     if (recipients.length === 0) return;
 
@@ -69,7 +109,6 @@ export async function notifyNewMessage(input: MessageNotification): Promise<void
 
 function bodyFor(content: string, hasAttachment: boolean): string {
   if (!content) return hasAttachment ? "Sent an attachment" : "Sent a message";
-  const trimmed =
-    content.length > PREVIEW_LENGTH ? `${content.slice(0, PREVIEW_LENGTH - 1)}…` : content;
-  return hasAttachment ? `${trimmed} (with an attachment)` : trimmed;
+  if (content.length <= PREVIEW_LENGTH) return content;
+  return `${content.slice(0, PREVIEW_LENGTH - 1)}…`;
 }

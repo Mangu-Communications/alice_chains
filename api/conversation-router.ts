@@ -29,6 +29,7 @@ interface ConversationListRow {
   lastMessageAt: Date | null;
   lastMessageSenderId: number | null;
   unreadCount: number | string | null;
+  notifyLevel: "all" | "mentions" | "off" | null;
 }
 import { conversations, conversationParticipants, users } from "@db/schema";
 
@@ -117,7 +118,7 @@ export const conversationRouter = createRouter({
     // runtime error.
     const rows = await db.execute(sql`
       WITH my AS (
-        SELECT conversationId, lastReadAt
+        SELECT conversationId, lastReadAt, notifyLevel
         FROM conversation_participants
         WHERE userId = ${userId}
       ),
@@ -132,6 +133,7 @@ export const conversationRouter = createRouter({
         WHERE m.deletedAt IS NULL
       )
       SELECT c.id, c.name, c.type, c.avatar, c.createdAt, c.updatedAt,
+             my.notifyLevel    AS notifyLevel,
              lm.content        AS lastMessageContent,
              lm.createdAt      AS lastMessageAt,
              lm.senderId       AS lastMessageSenderId,
@@ -190,8 +192,9 @@ export const conversationRouter = createRouter({
             ? otherParticipant?.userName || "Unknown"
             : conv.name || "Group Chat",
         displayAvatar: conv.type === "direct" ? otherParticipant?.userAvatar : conv.avatar,
-        participants: parts,
+        participants,
         unreadCount: Number(conv.unreadCount ?? 0),
+        notifyLevel: conv.notifyLevel ?? "all",
         latestMessage: conv.lastMessageAt
           ? {
               content: conv.lastMessageContent as string,
@@ -224,15 +227,19 @@ export const conversationRouter = createRouter({
           userId: conversationParticipants.userId,
           userName: users.name,
           userAvatar: users.avatar,
+          notifyLevel: conversationParticipants.notifyLevel,
         })
         .from(conversationParticipants)
         .leftJoin(users, eq(conversationParticipants.userId, users.id))
         .where(eq(conversationParticipants.conversationId, input.id));
 
       const otherParticipant = parts.find((p) => p.userId !== userId);
+      const mine = parts.find((p) => p.userId === userId);
+      const participants = parts.map(({ notifyLevel: _level, ...part }) => part);
 
       return {
         ...conv,
+        notifyLevel: mine?.notifyLevel ?? "all",
         displayName:
           conv.type === "direct"
             ? otherParticipant?.userName || "Unknown"
@@ -241,7 +248,7 @@ export const conversationRouter = createRouter({
           conv.type === "direct"
             ? otherParticipant?.userAvatar
             : conv.avatar,
-        participants: parts,
+        participants,
       };
     }),
 
@@ -572,6 +579,32 @@ export const conversationRouter = createRouter({
       // their client removes the conversation on its own.
       await announceConversationChange(input.conversationId, db);
       return { left: input.conversationId };
+    }),
+
+  /**
+   * P-UX-1. Notification preference is per member. `all` is the historical
+   * behaviour; `mentions` only pushes when the body names the member;
+   * `off` stores the choice and sends nothing.
+   */
+  setNotifyLevel: authedQuery
+    .input(
+      z.object({
+        conversationId: z.number().int().positive(),
+        level: z.enum(["all", "mentions", "off"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertParticipant(ctx.user.id, input.conversationId);
+      await getDb()
+        .update(conversationParticipants)
+        .set({ notifyLevel: input.level })
+        .where(
+          and(
+            eq(conversationParticipants.conversationId, input.conversationId),
+            eq(conversationParticipants.userId, ctx.user.id)
+          )
+        );
+      return { level: input.level };
     }),
 
   markAsRead: authedQuery
