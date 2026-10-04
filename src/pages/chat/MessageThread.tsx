@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { t, formatTime } from "@/i18n";
 import { Linkify } from "@/lib/linkify";
+import { MessageLinkPreview } from "./LinkPreviewCard";
 import { avatarInitial } from "@/lib/chat-display";
 import { MAX_MESSAGE_LENGTH } from "@contracts/constants";
 import { REACTION_EMOJI } from "@contracts/reactions";
@@ -251,12 +252,13 @@ export function MessageThread({
                       </div>
                     </div>
                   ) : (
-                    // P-LINK-1. Still text: `Linkify` returns React
-                    // elements from a parsed split, never markup from
-                    // message content, so FR-MSG-18 holds.
-                    <p className="whitespace-pre-wrap break-words">
-                      <Linkify text={msg.content} />
-                    </p>
+                    <>
+                      {/* Safe anchors stay in Linkify. Preview is a separate fetch. */}
+                      <p className="whitespace-pre-wrap break-words">
+                        <Linkify text={msg.content} />
+                      </p>
+                      {!msg.deletedAt ? <MessageLinkPreview content={msg.content} /> : null}
+                    </>
                   )}
                   <div
                     className={`flex items-center gap-1 mt-1 ${

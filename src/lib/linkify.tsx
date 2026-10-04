@@ -7,10 +7,9 @@
  *    but `data:` can carry an HTML document and `vbscript:` still runs in some
  *    contexts. Anything else is left as plain text, which is safe because React
  *    escapes it.
- * 2. **No unfurling.** Fetching a URL a member pasted, on the server, to build
- *    a preview would make the server issue arbitrary outbound requests on
- *    someone else's say-so — that is SSRF, and it is a feature request away
- *    from reading an internal metadata endpoint.
+ * 2. **Anchors do not unfurl by themselves.** A preview is a separate
+ *    authenticated fetch (`link.preview`) that refuses private targets and
+ *    caches for an hour. This file still only splits text.
  *
  * The parsing is deliberately plain: a regex over the text, not an HTML
  * parser, because the input is text and must stay text. Nothing here produces

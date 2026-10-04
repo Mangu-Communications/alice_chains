@@ -165,6 +165,8 @@ export const Limits = {
   createGroup: { capacity: 5, refillPerSecond: 20 / 86_400 },
   createDirect: { capacity: 10, refillPerSecond: 50 / 86_400 },
   uploadInit: { capacity: 5, refillPerSecond: 50 / 86_400 },
+  // Previews are cached for an hour, so this burst is for distinct URLs.
+  linkPreview: { capacity: 30, refillPerSecond: 2 },
 } as const satisfies Record<string, BucketPolicy>;
 
 /** Concurrent socket connection caps, which are counts rather than buckets. */

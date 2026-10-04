@@ -6,6 +6,7 @@ import { attachmentRouter } from "./attachment-router";
 import { pushRouter } from "./push-router";
 import { adminRouter } from "./admin-router";
 import { userRouter } from "./user-router";
+import { linkRouter } from "./link-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -18,6 +19,7 @@ export const appRouter = createRouter({
   push: pushRouter,
   admin: adminRouter,
   user: userRouter,
+  link: linkRouter,
 });
 
 export type AppRouter = typeof appRouter;
