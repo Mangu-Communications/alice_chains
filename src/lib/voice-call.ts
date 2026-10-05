@@ -5,12 +5,14 @@
  * the page should do with them. Media (getUserMedia, RTCPeerConnection) stays
  * in the hook so the rules can be tested without a browser.
  *
- * Video offers are declined: camera UI is P-CALL-3. ICE restart is P-CALL-5.
- * TURN credentials are P-CALL-4; a public STUN server is only a connectivity
- * hint until that card ships.
+ * Audio and video offers are both accepted. Camera capture is requested only
+ * for kind "video". ICE restart is P-CALL-5. TURN credentials are P-CALL-4;
+ * a public STUN server is only a connectivity hint until that card ships.
  */
 
 export type CallEndReason = "hangup" | "decline" | "busy" | "failed";
+
+export type CallKind = "audio" | "video";
 
 export type VoiceCallPhase =
   | "idle"
@@ -43,6 +45,7 @@ export type VoiceCallState = {
   conversationId: number | null;
   peerUserId: number | null;
   direction: "outgoing" | "incoming" | null;
+  kind: CallKind | null;
   remoteSdp: string | null;
   endReason: CallEndReason | "offline" | null;
 };
@@ -68,9 +71,15 @@ export function idleVoiceCall(): VoiceCallState {
     conversationId: null,
     peerUserId: null,
     direction: null,
+    kind: null,
     remoteSdp: null,
     endReason: null,
   };
+}
+
+/** Camera is requested only for a video call. Mic is always on. */
+export function mediaConstraints(kind: CallKind): { audio: true; video: boolean } {
+  return { audio: true, video: kind === "video" };
 }
 
 export function createCallId(): string {
@@ -100,7 +109,7 @@ function replyEnd(
 export function applyVoiceCall(
   state: VoiceCallState,
   action:
-    | { type: "start"; callId: string; conversationId: number; peerUserId: number }
+    | { type: "start"; callId: string; conversationId: number; peerUserId: number; kind?: CallKind }
     | { type: "offer"; event: CallOfferEvent; selfId: number }
     | { type: "accept" }
     | { type: "local-connected" }
@@ -124,6 +133,7 @@ export function applyVoiceCall(
           conversationId: action.conversationId,
           peerUserId: action.peerUserId,
           direction: "outgoing",
+          kind: action.kind === "video" ? "video" : "audio",
           remoteSdp: null,
           endReason: null,
         },
@@ -133,7 +143,7 @@ export function applyVoiceCall(
     case "offer": {
       const event = action.event;
       if (event.targetUserId !== action.selfId) return none;
-      if (event.kind !== "audio") {
+      if (event.kind !== "audio" && event.kind !== "video") {
         return {
           state,
           effect: replyEnd(event.callId, event.conversationId, event.fromUserId, "failed"),
@@ -152,6 +162,7 @@ export function applyVoiceCall(
           conversationId: event.conversationId,
           peerUserId: event.fromUserId,
           direction: "incoming",
+          kind: event.kind,
           remoteSdp: event.sdp,
           endReason: null,
         },
