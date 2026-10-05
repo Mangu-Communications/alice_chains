@@ -3,8 +3,10 @@ import {
   applyVoiceCall,
   createCallId,
   DEFAULT_ICE_SERVERS,
+  ICE_RESTART_WINDOW_MS,
   idleVoiceCall,
   mediaConstraints,
+  planIceRecovery,
   qualityFromIce,
   type CallEndReason,
   type CallKind,
@@ -28,7 +30,7 @@ type SocketApi = Pick<
 /**
  * P-CALL-2/3. Places a 1:1 audio or video call on the P-CALL-1 socket events.
  * TURN credentials come from turn.iceServers (P-CALL-4) when the panel supplies a fetcher.
- * No ICE restart (P-CALL-5).
+ * A drop under 10s restarts ICE once from the outgoing side (P-CALL-5).
  */
 async function resolveIceServers(
   getIceServers?: () => Promise<RTCIceServer[]>
@@ -59,9 +61,20 @@ export function useVoiceCall(
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
+  const dropStartedAt = useRef<number | null>(null);
+  const dropTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restartInFlight = useRef(false);
+
+  const clearDrop = useCallback(() => {
+    dropStartedAt.current = null;
+    restartInFlight.current = false;
+    if (dropTimer.current) clearTimeout(dropTimer.current);
+    dropTimer.current = null;
+  }, []);
 
   const stopMedia = useCallback(() => {
     pendingIce.current = [];
+    clearDrop();
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     pcRef.current?.close();
@@ -71,7 +84,7 @@ export function useVoiceCall(
     setMuted(false);
     setCameraOff(false);
     setQuality("connecting");
-  }, []);
+  }, [clearDrop]);
 
   const emitEffect = useCallback(
     (effect: ReturnType<typeof applyVoiceCall>["effect"]) => {
@@ -94,7 +107,7 @@ export function useVoiceCall(
       setSession(next.state);
       emitEffect(next.effect);
       if (next.state.phase === "ended") stopMedia();
-      return next.state;
+      return next;
     },
     [emitEffect, stopMedia]
   );
@@ -131,21 +144,81 @@ export function useVoiceCall(
         });
       };
       pc.oniceconnectionstatechange = () => {
-        const label = qualityFromIce(pc.iceConnectionState);
+        const iceState = pc.iceConnectionState;
+        const label = qualityFromIce(iceState);
         setQuality(label);
-        if (label === "good") transition({ type: "local-connected" });
-        if (label === "failed") transition({ type: "local-end", reason: "failed" });
+        if (label === "good") {
+          clearDrop();
+          transition({ type: "local-connected" });
+          return;
+        }
+        if (iceState === "closed") {
+          transition({ type: "local-end", reason: "failed" });
+          return;
+        }
+        if (iceState !== "disconnected" && iceState !== "failed") return;
+        if (dropStartedAt.current === null) dropStartedAt.current = Date.now();
+        const current = sessionRef.current;
+        const plan = planIceRecovery({
+          phase: current.phase,
+          direction: current.direction,
+          iceState,
+          dropElapsedMs: Date.now() - dropStartedAt.current,
+          restartInFlight: restartInFlight.current,
+        });
+        if (plan.type === "end") {
+          transition({ type: "local-end", reason: "failed" });
+          return;
+        }
+        if (plan.type === "restart") {
+          restartInFlight.current = true;
+          void sendIceRestart();
+        }
+        if ((plan.type === "restart" || plan.type === "wait") && !dropTimer.current) {
+          const remaining = Math.max(0, ICE_RESTART_WINDOW_MS - (Date.now() - dropStartedAt.current));
+          dropTimer.current = setTimeout(() => {
+            dropTimer.current = null;
+            const live = sessionRef.current;
+            const expired = planIceRecovery({
+              phase: live.phase,
+              direction: live.direction,
+              iceState: "disconnected",
+              dropElapsedMs: ICE_RESTART_WINDOW_MS,
+              restartInFlight: restartInFlight.current,
+            });
+            if (expired.type === "end") transition({ type: "local-end", reason: "failed" });
+          }, remaining);
+        }
       };
       return pc;
     },
-    [socket, transition, getIceServers]
+    [socket, transition, getIceServers, clearDrop]
   );
+
+  const sendIceRestart = useCallback(async () => {
+    const current = sessionRef.current;
+    const pc = pcRef.current;
+    if (!pc || current.callId === null || current.conversationId === null || current.peerUserId === null) return;
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
+      await pc.setLocalDescription(offer);
+      socket.emitCallOffer({
+        conversationId: current.conversationId,
+        callId: current.callId,
+        targetUserId: current.peerUserId,
+        sdp: offer.sdp ?? "",
+        kind: current.kind === "video" ? "video" : "audio",
+      });
+    } catch {
+      transition({ type: "local-end", reason: "failed" });
+    }
+  }, [socket, transition]);
 
   const start = useCallback(
     async (conversationId: number, peerUserId: number, kind: CallKind = "audio") => {
       if (selfId === null) return;
       const callId = createCallId();
-      const started = transition({ type: "start", callId, conversationId, peerUserId, kind });
+      const started = transition({ type: "start", callId, conversationId, peerUserId, kind }).state;
       if (started.phase !== "outgoing") return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints(started.kind ?? kind));
@@ -171,7 +244,7 @@ export function useVoiceCall(
   const accept = useCallback(async () => {
     const current = sessionRef.current;
     if (current.phase !== "incoming" || !current.remoteSdp || current.callId === null) return;
-    const accepted = transition({ type: "accept" });
+    const accepted = transition({ type: "accept" }).state;
     if (accepted.phase !== "connecting" || accepted.peerUserId === null || accepted.conversationId === null) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
@@ -220,16 +293,38 @@ export function useVoiceCall(
   useEffect(() => {
     if (selfId === null) return;
     const offOffer = socket.onCallOffer((event) => {
-      transition({ type: "offer", event, selfId });
+      const next = transition({ type: "offer", event, selfId });
+      if (next.effect.type !== "renegotiate") return;
+      const pc = pcRef.current;
+      const current = sessionRef.current;
+      if (!pc || current.callId === null || current.conversationId === null || current.peerUserId === null) return;
+      void (async () => {
+        try {
+          await pc.setRemoteDescription({ type: "offer", sdp: event.sdp });
+          await flushIce(pc);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emitCallAnswer({
+            conversationId: current.conversationId!,
+            callId: current.callId!,
+            targetUserId: current.peerUserId!,
+            sdp: answer.sdp ?? "",
+          });
+        } catch {
+          transition({ type: "local-end", reason: "failed" });
+        }
+      })();
     });
     const offAnswer = socket.onCallAnswer(async (event) => {
       const current = sessionRef.current;
-      if (current.callId !== event.callId || current.phase !== "outgoing") return;
+      if (current.callId !== event.callId) return;
+      if (current.phase !== "outgoing" && !restartInFlight.current) return;
       const pc = pcRef.current;
       if (!pc) return;
       try {
         await pc.setRemoteDescription({ type: "answer", sdp: event.sdp });
         await flushIce(pc);
+        restartInFlight.current = false;
       } catch {
         transition({ type: "local-end", reason: "failed" });
       }

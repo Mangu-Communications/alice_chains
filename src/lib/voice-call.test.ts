@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyVoiceCall,
   canStartVoiceCall,
+  ICE_RESTART_WINDOW_MS,
   idleVoiceCall,
   mediaConstraints,
+  planIceRecovery,
   qualityFromIce,
   type CallOfferEvent,
 } from "./voice-call";
@@ -108,6 +110,33 @@ describe("applyVoiceCall", () => {
     expect(audio.state.kind).toBe("audio");
   });
 
+  it("renegotiates a same-call offer once media is up and still busy-rejects a different call", () => {
+    const connected = applyVoiceCall(
+      applyVoiceCall(idleVoiceCall(), {
+        type: "offer",
+        event: offer(),
+        selfId: 2,
+      }).state,
+      { type: "accept" },
+    ).state;
+    const live = applyVoiceCall(connected, { type: "local-connected" }).state;
+    const restart = applyVoiceCall(live, {
+      type: "offer",
+      event: offer({ sdp: "v=restart" }),
+      selfId: 2,
+    });
+    expect(restart.state.phase).toBe("connected");
+    expect(restart.state.remoteSdp).toBe("v=restart");
+    expect(restart.effect).toEqual({ type: "renegotiate", sdp: "v=restart" });
+    const other = applyVoiceCall(live, {
+      type: "offer",
+      event: offer({ callId: "theirs" }),
+      selfId: 2,
+    });
+    expect(other.state.callId).toBe("c1");
+    expect(other.effect).toMatchObject({ type: "reply-end", reason: "busy", callId: "theirs" });
+  });
+
   it("replies busy when an offer arrives during a live call", () => {
     const live = applyVoiceCall(idleVoiceCall(), {
       type: "start",
@@ -210,7 +239,7 @@ describe("canStartVoiceCall", () => {
 });
 
 describe("qualityFromIce", () => {
-  it("maps ICE states to a quality label without restarting", () => {
+  it("maps ICE states to a quality label", () => {
     expect(qualityFromIce("checking")).toBe("connecting");
     expect(qualityFromIce("connected")).toBe("good");
     expect(qualityFromIce("completed")).toBe("good");
@@ -223,5 +252,67 @@ describe("mediaConstraints", () => {
   it("requests the camera only for a video call", () => {
     expect(mediaConstraints("audio")).toEqual({ audio: true, video: false });
     expect(mediaConstraints("video")).toEqual({ audio: true, video: true });
+  });
+});
+
+describe("planIceRecovery", () => {
+  it("restarts once from the outgoing side inside the 10s window", () => {
+    expect(
+      planIceRecovery({
+        phase: "connected",
+        direction: "outgoing",
+        iceState: "disconnected",
+        dropElapsedMs: 0,
+        restartInFlight: false,
+      }),
+    ).toEqual({ type: "restart" });
+    expect(
+      planIceRecovery({
+        phase: "connected",
+        direction: "outgoing",
+        iceState: "failed",
+        dropElapsedMs: ICE_RESTART_WINDOW_MS - 1,
+        restartInFlight: true,
+      }),
+    ).toEqual({ type: "wait" });
+  });
+
+  it("waits on the incoming side and ends after the window", () => {
+    expect(
+      planIceRecovery({
+        phase: "connecting",
+        direction: "incoming",
+        iceState: "failed",
+        dropElapsedMs: 1_000,
+        restartInFlight: false,
+      }),
+    ).toEqual({ type: "wait" });
+    expect(
+      planIceRecovery({
+        phase: "connected",
+        direction: "incoming",
+        iceState: "disconnected",
+        dropElapsedMs: ICE_RESTART_WINDOW_MS,
+        restartInFlight: false,
+      }),
+    ).toEqual({ type: "end" });
+    expect(
+      planIceRecovery({
+        phase: "connected",
+        direction: "outgoing",
+        iceState: "connected",
+        dropElapsedMs: 0,
+        restartInFlight: false,
+      }),
+    ).toEqual({ type: "none" });
+    expect(
+      planIceRecovery({
+        phase: "incoming",
+        direction: "incoming",
+        iceState: "failed",
+        dropElapsedMs: 0,
+        restartInFlight: false,
+      }),
+    ).toEqual({ type: "none" });
   });
 });
