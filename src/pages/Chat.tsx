@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { t, formatMessageTimestamp } from "@/i18n";
 import { LiveRegion } from "@/components/LiveRegion";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
+import { InstallPromptBanner } from "@/components/InstallPrompt";
 import { Outbox, type OutboxEntry } from "@/lib/outbox";
 import { MAX_MESSAGE_LENGTH, MIN_SEARCH_QUERY_LENGTH } from "@contracts/constants";
 import { MediaDrawer } from "@/components/MediaDrawer";
@@ -776,6 +777,7 @@ export default function Chat() {
 
       {/* Chat Area */}
       <main className="flex-1 flex flex-col h-full bg-background/50">
+        <InstallPromptBanner />
         {activeConversation && activeConversationId ? (
           <>
             {/* Chat Header */}

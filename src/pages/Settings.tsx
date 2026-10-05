@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { t } from "@/i18n";
 import { applyTheme, resolveTheme, THEME_COLORS, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
+import { InstallPromptSettings } from "@/components/InstallPrompt";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_AVATAR_BYTES,
@@ -276,6 +277,8 @@ export default function Settings() {
                   </Button>
                 </div>
               </section>
+
+              <InstallPromptSettings />
 
               <section className="space-y-3 pt-4 border-t border-border">
                 <h2 className="text-sm font-semibold">Security</h2>
