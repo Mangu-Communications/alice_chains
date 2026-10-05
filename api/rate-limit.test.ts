@@ -4,7 +4,7 @@
  * Cases: TC-SOCK-23, TC-REG-14. There was no rate limiting anywhere, so every
  * endpoint accepted requests as fast as they arrived.
  */
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Socket as ClientSocket } from "socket.io-client";
 import {
   bucketCount,
@@ -163,13 +163,20 @@ describeIntegration("rate-limited surfaces (S-13)", () => {
   });
 
   it("refuses message.send past the burst, with TOO_MANY_REQUESTS", async () => {
-    for (let i = 0; i < Limits.messageSendPerUser.capacity; i += 1) {
-      await caller(alice).message.send({ conversationId: conversation, content: `m${i}` });
-    }
+    // messageSendPerUser refills at 5/s. A slow CI insert loop crosses that
+    // interval and used to let the extra send through (push run 37216434367).
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    try {
+      for (let i = 0; i < Limits.messageSendPerUser.capacity; i += 1) {
+        await caller(alice).message.send({ conversationId: conversation, content: `m${i}` });
+      }
 
-    await expect(
-      caller(alice).message.send({ conversationId: conversation, content: "one too many" })
-    ).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+      await expect(
+        caller(alice).message.send({ conversationId: conversation, content: "one too many" })
+      ).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    } finally {
+      vi.mocked(Date.now).mockRestore();
+    }
   });
 
   it("limits per member, so one busy client cannot silence another", async () => {

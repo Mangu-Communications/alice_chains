@@ -167,6 +167,8 @@ export const Limits = {
   uploadInit: { capacity: 5, refillPerSecond: 50 / 86_400 },
   // Previews are cached for an hour, so this burst is for distinct URLs.
   linkPreview: { capacity: 30, refillPerSecond: 2 },
+  // ICE can emit a burst of candidates; the cap is per sender, not per call.
+  callSignal: { capacity: 40, refillPerSecond: 10 },
 } as const satisfies Record<string, BucketPolicy>;
 
 /** Concurrent socket connection caps, which are counts rather than buckets. */

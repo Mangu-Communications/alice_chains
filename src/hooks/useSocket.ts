@@ -45,6 +45,37 @@ interface ServerToClientEvents {
    * "signed out" rather than fall into a silent reconnect loop.
    */
   sessionExpired: () => void;
+  /** P-CALL-1. Relayed signaling. The page does not place calls yet (P-CALL-2). */
+  callOffer: (data: {
+    conversationId: number;
+    callId: string;
+    fromUserId: number;
+    targetUserId: number;
+    sdp: string;
+    kind: "audio" | "video";
+  }) => void;
+  callAnswer: (data: {
+    conversationId: number;
+    callId: string;
+    fromUserId: number;
+    targetUserId: number;
+    sdp: string;
+  }) => void;
+  callIceCandidate: (data: {
+    conversationId: number;
+    callId: string;
+    fromUserId: number;
+    targetUserId: number;
+    candidate: string;
+  }) => void;
+  callEnd: (data: {
+    conversationId: number;
+    callId: string;
+    fromUserId: number;
+    targetUserId: number;
+    reason?: "hangup" | "decline" | "busy" | "failed";
+  }) => void;
+  callError: (data: { callId: string; code: "CALL_OFFLINE" }) => void;
 }
 
 interface ClientToServerEvents {
@@ -60,6 +91,31 @@ interface ClientToServerEvents {
   }) => void;
   markAsRead: (data: { messageIds: number[]; conversationId: number }) => void;
   typing: (data: { conversationId: number; isTyping: boolean }) => void;
+  callOffer: (data: {
+    conversationId: number;
+    callId: string;
+    targetUserId: number;
+    sdp: string;
+    kind: "audio" | "video";
+  }) => void;
+  callAnswer: (data: {
+    conversationId: number;
+    callId: string;
+    targetUserId: number;
+    sdp: string;
+  }) => void;
+  callIceCandidate: (data: {
+    conversationId: number;
+    callId: string;
+    targetUserId: number;
+    candidate: string;
+  }) => void;
+  callEnd: (data: {
+    conversationId: number;
+    callId: string;
+    targetUserId: number;
+    reason?: "hangup" | "decline" | "busy" | "failed";
+  }) => void;
 }
 
 export type ConnectionState = "connecting" | "connected" | "disconnected";

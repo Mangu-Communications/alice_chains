@@ -35,6 +35,10 @@ describe("the socket event schemas (S-14)", () => {
   it("covers every client-to-server event", () => {
     // A new event without a schema is the exact hole this card closed.
     expect(Object.keys(SOCKET_EVENT_SCHEMAS).sort()).toEqual([
+      "callAnswer",
+      "callEnd",
+      "callIceCandidate",
+      "callOffer",
       "joinConversation",
       "leaveConversation",
       "markAsRead",

@@ -426,6 +426,50 @@ export function initSocket(server: HttpServer) {
       })
     );
 
+    // P-CALL-1. Relay WebRTC signaling to one other member of the conversation.
+    // Media never touches this process. A non-member, a self-target, or a block
+    // is a silent drop so the attempt does not confirm the relationship.
+    const relayCall = async (
+      event: "callOffer" | "callAnswer" | "callIceCandidate" | "callEnd",
+      data: {
+        conversationId: number;
+        callId: string;
+        targetUserId: number;
+      } & Record<string, unknown>
+    ) => {
+      const limit = consume("socket.call", userId, Limits.callSignal);
+      if (!limit.allowed) {
+        socket.emit("rateLimited", { event, retryAfterMs: limit.retryAfterMs });
+        return;
+      }
+      if (data.targetUserId === userId) return;
+      if (!(await isMember(data.conversationId))) return;
+      if (!(await isParticipant(data.targetUserId, data.conversationId))) return;
+      if ((await blockedWith(userId)).has(data.targetUserId)) return;
+      if (!onlineUsers.get(data.targetUserId)?.size) {
+        socket.emit("callError", { callId: data.callId, code: "CALL_OFFLINE" });
+        return;
+      }
+      io?.to(`user_${data.targetUserId}`).emit(event, { ...data, fromUserId: userId });
+    };
+
+    socket.on(
+      "callOffer",
+      validated(socket, "callOffer", (data) => relayCall("callOffer", data))
+    );
+    socket.on(
+      "callAnswer",
+      validated(socket, "callAnswer", (data) => relayCall("callAnswer", data))
+    );
+    socket.on(
+      "callIceCandidate",
+      validated(socket, "callIceCandidate", (data) => relayCall("callIceCandidate", data))
+    );
+    socket.on(
+      "callEnd",
+      validated(socket, "callEnd", (data) => relayCall("callEnd", data))
+    );
+
     // Disconnect
     socket.on("disconnect", () => {
       const remaining = (connectionsByIp.get(address) ?? 1) - 1;
