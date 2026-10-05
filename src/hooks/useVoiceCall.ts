@@ -27,9 +27,27 @@ type SocketApi = Pick<
 
 /**
  * P-CALL-2/3. Places a 1:1 audio or video call on the P-CALL-1 socket events.
- * No TURN credential fetch (P-CALL-4). No ICE restart (P-CALL-5).
+ * TURN credentials come from turn.iceServers (P-CALL-4) when the panel supplies a fetcher.
+ * No ICE restart (P-CALL-5).
  */
-export function useVoiceCall(selfId: number | null, socket: SocketApi) {
+async function resolveIceServers(
+  getIceServers?: () => Promise<RTCIceServer[]>
+): Promise<RTCIceServer[]> {
+  if (!getIceServers) return DEFAULT_ICE_SERVERS;
+  try {
+    const issued = await getIceServers();
+    if (issued.length > 0) return issued;
+  } catch {
+    // A credential fetch failure must not block a STUN call.
+  }
+  return DEFAULT_ICE_SERVERS;
+}
+
+export function useVoiceCall(
+  selfId: number | null,
+  socket: SocketApi,
+  getIceServers?: () => Promise<RTCIceServer[]>
+) {
   const [session, setSession] = useState<VoiceCallState>(idleVoiceCall);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
@@ -94,8 +112,9 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
   }, []);
 
   const openPeer = useCallback(
-    (callId: string, conversationId: number, peerUserId: number, stream: MediaStream) => {
-      const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+    async (callId: string, conversationId: number, peerUserId: number, stream: MediaStream) => {
+      const iceServers = await resolveIceServers(getIceServers);
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
       for (const track of stream.getTracks()) pc.addTrack(track, stream);
       pc.ontrack = (event) => {
@@ -119,7 +138,7 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
       };
       return pc;
     },
-    [socket, transition]
+    [socket, transition, getIceServers]
   );
 
   const start = useCallback(
@@ -132,7 +151,7 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
         const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints(started.kind ?? kind));
         localStreamRef.current = stream;
         setLocalStream(stream);
-        const pc = openPeer(callId, conversationId, peerUserId, stream);
+        const pc = await openPeer(callId, conversationId, peerUserId, stream);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emitCallOffer({
@@ -160,7 +179,7 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
       );
       localStreamRef.current = stream;
       setLocalStream(stream);
-      const pc = openPeer(accepted.callId!, accepted.conversationId, accepted.peerUserId, stream);
+      const pc = await openPeer(accepted.callId!, accepted.conversationId, accepted.peerUserId, stream);
       await pc.setRemoteDescription({ type: "offer", sdp: accepted.remoteSdp! });
       await flushIce(pc);
       const answer = await pc.createAnswer();

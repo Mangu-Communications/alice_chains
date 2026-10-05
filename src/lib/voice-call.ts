@@ -6,8 +6,8 @@
  * in the hook so the rules can be tested without a browser.
  *
  * Audio and video offers are both accepted. Camera capture is requested only
- * for kind "video". ICE restart is P-CALL-5. TURN credentials are P-CALL-4;
- * a public STUN server is only a connectivity hint until that card ships.
+ * for kind "video". ICE restart is P-CALL-5. TURN credentials are issued by
+ * turn.iceServers (P-CALL-4); STUN remains the fallback when TURN is unset.
  */
 
 export type CallEndReason = "hangup" | "decline" | "busy" | "failed";
