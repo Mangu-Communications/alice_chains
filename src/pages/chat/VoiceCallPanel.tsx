@@ -14,7 +14,8 @@ function bindStream(node: HTMLVideoElement | null, stream: MediaStream | null) {
 }
 
 /**
- * P-CALL-2/3/4. 1:1 voice and video controls. Groups stay text. TURN credentials are fetched per call.
+ * P-CALL-2/3/4/5. 1:1 voice and video controls. Groups stay text. TURN credentials are fetched per call.
+ * Drops under 10s recover in the session; this panel only shows the quality label.
  */
 export function VoiceCallPanel({
   selfId,

@@ -6,8 +6,9 @@
  * in the hook so the rules can be tested without a browser.
  *
  * Audio and video offers are both accepted. Camera capture is requested only
- * for kind "video". ICE restart is P-CALL-5. TURN credentials are issued by
- * turn.iceServers (P-CALL-4); STUN remains the fallback when TURN is unset.
+ * for kind "video". Drops under ICE_RESTART_WINDOW_MS recover via one ICE
+ * restart offer from the outgoing side (P-CALL-5). TURN credentials are issued
+ * by turn.iceServers (P-CALL-4); STUN remains the fallback when TURN is unset.
  */
 
 export type CallEndReason = "hangup" | "decline" | "busy" | "failed";
@@ -58,11 +59,17 @@ export type CallEffect =
       conversationId: number;
       targetUserId: number;
       reason: CallEndReason;
-    };
+    }
+  | { type: "renegotiate"; sdp: string };
 
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
+
+/** Drops shorter than this should recover. Longer drops end the call. */
+export const ICE_RESTART_WINDOW_MS = 10_000;
+
+export type IceRecoveryPlan = { type: "none" } | { type: "restart" } | { type: "wait" } | { type: "end" };
 
 export function idleVoiceCall(): VoiceCallState {
   return {
@@ -150,6 +157,15 @@ export function applyVoiceCall(
         };
       }
       if (isLive(state.phase)) {
+        if (
+          event.callId === state.callId &&
+          (state.phase === "connecting" || state.phase === "connected")
+        ) {
+          return {
+            state: { ...state, remoteSdp: event.sdp },
+            effect: { type: "renegotiate", sdp: event.sdp },
+          };
+        }
         return {
           state,
           effect: replyEnd(event.callId, event.conversationId, event.fromUserId, "busy"),
@@ -220,10 +236,29 @@ export function canStartVoiceCall(input: {
   return input.isDirect && input.peerUserId !== null && !isLive(input.phase);
 }
 
-/** Connection quality from ICE, not a restart (that is P-CALL-5). */
+/** Connection quality from ICE. Restart timing is planIceRecovery. */
 export function qualityFromIce(iceState: string): "connecting" | "good" | "poor" | "failed" {
   if (iceState === "connected" || iceState === "completed") return "good";
   if (iceState === "disconnected") return "poor";
   if (iceState === "failed" || iceState === "closed") return "failed";
   return "connecting";
+}
+
+/**
+ * Recover a drop under 10s. The outgoing side sends one iceRestart offer.
+ * The incoming side waits for that offer. Past the window, end the call.
+ */
+export function planIceRecovery(input: {
+  phase: VoiceCallPhase;
+  direction: "outgoing" | "incoming" | null;
+  iceState: string;
+  dropElapsedMs: number;
+  restartInFlight: boolean;
+}): IceRecoveryPlan {
+  if (input.phase !== "connecting" && input.phase !== "connected") return { type: "none" };
+  if (input.iceState === "connected" || input.iceState === "completed") return { type: "none" };
+  if (input.iceState !== "disconnected" && input.iceState !== "failed") return { type: "none" };
+  if (input.dropElapsedMs >= ICE_RESTART_WINDOW_MS) return { type: "end" };
+  if (input.direction === "outgoing" && !input.restartInFlight) return { type: "restart" };
+  return { type: "wait" };
 }
