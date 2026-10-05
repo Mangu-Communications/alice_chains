@@ -15,6 +15,7 @@ export const en = {
   // ── Accessible names for icon-only controls ───────────────────────────
   "a11y.closeSidebar": "Close the conversation list",
   "a11y.openSidebar": "Open the conversation list",
+  "a11y.skipToConversation": "Skip to conversation",
   "a11y.accountMenu": "Account menu",
   "a11y.conversationMenu": "Conversation options",
   "a11y.startCall": "Start a voice call",
