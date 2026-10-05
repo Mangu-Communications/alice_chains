@@ -1,7 +1,7 @@
 import type { Server as HttpServer } from "http";
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { TRPCError } from "@trpc/server";
-import { notifyNewMessage } from "./lib/push/notify";
+import { notifyIncomingCall, notifyNewMessage } from "./lib/push/notify";
 import { getDb } from "./queries/connection";
 import { insertMessage } from "./queries/messages";
 import { messageReads, conversationParticipants, conversations, users } from "@db/schema";
@@ -447,6 +447,24 @@ export function initSocket(server: HttpServer) {
       if (!(await isParticipant(data.targetUserId, data.conversationId))) return;
       if ((await blockedWith(userId)).has(data.targetUserId)) return;
       if (!onlineUsers.get(data.targetUserId)?.size) {
+        // P-CALL-6. A missing socket cannot carry media. An offer still wakes
+        // a subscribed member on the existing web-push path. Answer, ICE, and
+        // hangup stay silent: there is nobody to renegotiate with.
+        if (event === "callOffer") {
+          const [caller] = await getDb()
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
+          void notifyIncomingCall({
+            conversationId: data.conversationId,
+            callId: data.callId,
+            callerId: userId,
+            callerName: caller?.name ?? null,
+            calleeId: data.targetUserId,
+            kind: "kind" in data && data.kind === "video" ? "video" : "audio",
+          });
+        }
         socket.emit("callError", { callId: data.callId, code: "CALL_OFFLINE" });
         return;
       }

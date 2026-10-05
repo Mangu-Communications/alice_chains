@@ -35,6 +35,8 @@ self.addEventListener("push", (event) => {
       renotify: true,
       icon: payload.icon || "/favicon.svg",
       badge: "/favicon.svg",
+      // Incoming calls set this so the ring stays until the member opens it.
+      requireInteraction: Boolean(payload.requireInteraction),
       data: { url: payload.url || "/chat" },
     })
   );
