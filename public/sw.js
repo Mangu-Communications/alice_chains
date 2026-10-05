@@ -1,19 +1,93 @@
 /**
- * Service worker for web push (BUILD_PLAN F-6).
+ * Service worker for web push (BUILD_PLAN F-6) and the P-PWA-2 offline shell.
  *
- * Served from the site root so its scope covers the whole app. It does nothing
- * but notifications — no caching, no offline shell — because an aggressive
- * cache on an app that is mostly live data causes more confusion than it saves.
+ * Served from the site root so its scope covers the whole app. Push handling
+ * is unchanged. The cache holds only the offline page, icons, manifest, and
+ * hashed /assets files. /api and /socket.io are never intercepted — live chat
+ * data is not cached.
+ *
+ * Cache name and offline URL match src/lib/offline-shell.ts.
  */
 
-self.addEventListener("install", () => {
-  // Take over immediately rather than waiting for every tab to close, so a
-  // member who just granted permission does not have to reload.
-  self.skipWaiting();
+const SHELL_CACHE = "alisons-shell-v1";
+const OFFLINE_URL = "/offline.html";
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  "/favicon.svg",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-maskable-512.png",
+  "/icons/apple-touch-icon.png",
+];
+
+function isLiveDataPath(pathname) {
+  return pathname === "/api" || pathname.startsWith("/api/") || pathname.startsWith("/socket.io");
+}
+
+function isRuntimeShellAsset(pathname) {
+  return pathname.startsWith("/assets/") || PRECACHE_URLS.includes(pathname);
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(SHELL_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith("alisons-shell-") && name !== SHELL_CACHE)
+          .map((name) => caches.delete(name)),
+      );
+      await self.clients.claim();
+    })(),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (isLiveDataPath(url.pathname)) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch {
+          const cached = await caches.match(OFFLINE_URL);
+          return cached || new Response("You are offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+        }
+      })(),
+    );
+    return;
+  }
+
+  if (!isRuntimeShellAsset(url.pathname)) return;
+
+  event.respondWith(
+    (async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok) {
+        const cache = await caches.open(SHELL_CACHE);
+        await cache.put(request, response.clone());
+      }
+      return response;
+    })(),
+  );
 });
 
 self.addEventListener("push", (event) => {
@@ -38,7 +112,7 @@ self.addEventListener("push", (event) => {
       // Incoming calls set this so the ring stays until the member opens it.
       requireInteraction: Boolean(payload.requireInteraction),
       data: { url: payload.url || "/chat" },
-    })
+    }),
   );
 });
 
@@ -64,6 +138,6 @@ self.addEventListener("notificationclick", (event) => {
       }
 
       await clients.openWindow(target);
-    })()
+    })(),
   );
 });
