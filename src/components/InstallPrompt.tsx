@@ -2,7 +2,7 @@
  * P-PWA-1 — dismissible home-screen install offer.
  *
  * Chromium gets the deferred prompt. iOS gets the add-to-home-screen steps,
- * because Safari does not fire beforeinstallprompt. Offline caching is P-PWA-2.
+ * because Safari does not fire beforeinstallprompt. The offline shell lives in public/sw.js (P-PWA-2); this banner does not cache.
  */
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
