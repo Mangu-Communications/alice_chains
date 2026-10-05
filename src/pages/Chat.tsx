@@ -9,8 +9,6 @@ import { useNavigate } from "react-router";
 import {
   MessageCircle,
   MoreVertical,
-  Phone,
-  Video,
   Search,
   Users,
   Images,
@@ -21,6 +19,7 @@ import { ConversationSidebar } from "@/pages/chat/ConversationSidebar";
 import { MessageThread } from "@/pages/chat/MessageThread";
 import { MessageComposer } from "@/pages/chat/MessageComposer";
 import { GroupSettingsDialog } from "@/pages/chat/GroupSettingsDialog";
+import { VoiceCallPanel } from "@/pages/chat/VoiceCallPanel";
 import { COMPOSER_MAX_HEIGHT } from "@/pages/chat/composer-display";
 import {
   flattenMessagePages,
@@ -822,11 +821,22 @@ export default function Chat() {
               </div>
               <div className="flex items-center gap-1">
                 {/*
-                  The phone and video icons that used to sit beside this did
-                  nothing when pressed, so S-20 removed them rather than label
-                  a control that lies. They return with P-CALL-1/2. Search is
-                  live as of P-SEARCH-1.
+                  P-CALL-2 puts the voice button back on a real flow. Video
+                  stays absent until P-CALL-3. Search is live as of P-SEARCH-1.
                 */}
+                <VoiceCallPanel
+                  selfId={user?.id ?? null}
+                  conversationId={activeConversationId}
+                  peerUserId={otherDirectMemberId(
+                    activeConversation.type,
+                    activeConversation.participants,
+                    user?.id,
+                  )}
+                  peerName={activeConversation.displayName}
+                  isDirect={activeConversation.type === "direct"}
+                  conversations={conversations ?? []}
+                  socket={socket}
+                />
                 <Button
                   variant="ghost"
                   size="icon"

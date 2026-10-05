@@ -45,7 +45,7 @@ interface ServerToClientEvents {
    * "signed out" rather than fall into a silent reconnect loop.
    */
   sessionExpired: () => void;
-  /** P-CALL-1. Relayed signaling. The page does not place calls yet (P-CALL-2). */
+  /** P-CALL-1. Relayed signaling. P-CALL-2 places 1:1 voice calls on these events. */
   callOffer: (data: {
     conversationId: number;
     callId: string;
@@ -317,6 +317,105 @@ export function useSocket() {
     []
   );
 
+  const emitCallOffer = useCallback(
+    (data: {
+      conversationId: number;
+      callId: string;
+      targetUserId: number;
+      sdp: string;
+      kind: "audio" | "video";
+    }) => {
+      socketRef.current?.emit("callOffer", data);
+    },
+    []
+  );
+
+  const emitCallAnswer = useCallback(
+    (data: {
+      conversationId: number;
+      callId: string;
+      targetUserId: number;
+      sdp: string;
+    }) => {
+      socketRef.current?.emit("callAnswer", data);
+    },
+    []
+  );
+
+  const emitCallIceCandidate = useCallback(
+    (data: {
+      conversationId: number;
+      callId: string;
+      targetUserId: number;
+      candidate: string;
+    }) => {
+      socketRef.current?.emit("callIceCandidate", data);
+    },
+    []
+  );
+
+  const emitCallEnd = useCallback(
+    (data: {
+      conversationId: number;
+      callId: string;
+      targetUserId: number;
+      reason?: "hangup" | "decline" | "busy" | "failed";
+    }) => {
+      socketRef.current?.emit("callEnd", data);
+    },
+    []
+  );
+
+  const onCallOffer = useCallback(
+    (handler: ServerToClientEvents["callOffer"]) => {
+      socketRef.current?.on("callOffer", handler);
+      return () => {
+        socketRef.current?.off("callOffer", handler);
+      };
+    },
+    []
+  );
+
+  const onCallAnswer = useCallback(
+    (handler: ServerToClientEvents["callAnswer"]) => {
+      socketRef.current?.on("callAnswer", handler);
+      return () => {
+        socketRef.current?.off("callAnswer", handler);
+      };
+    },
+    []
+  );
+
+  const onCallIceCandidate = useCallback(
+    (handler: ServerToClientEvents["callIceCandidate"]) => {
+      socketRef.current?.on("callIceCandidate", handler);
+      return () => {
+        socketRef.current?.off("callIceCandidate", handler);
+      };
+    },
+    []
+  );
+
+  const onCallEnd = useCallback(
+    (handler: ServerToClientEvents["callEnd"]) => {
+      socketRef.current?.on("callEnd", handler);
+      return () => {
+        socketRef.current?.off("callEnd", handler);
+      };
+    },
+    []
+  );
+
+  const onCallError = useCallback(
+    (handler: ServerToClientEvents["callError"]) => {
+      socketRef.current?.on("callError", handler);
+      return () => {
+        socketRef.current?.off("callError", handler);
+      };
+    },
+    []
+  );
+
   return {
     socket: socketRef.current,
     connection,
@@ -337,5 +436,14 @@ export function useSocket() {
     onMessageUpdated,
     onMessageDeleted,
     onReactionUpdated,
+    emitCallOffer,
+    emitCallAnswer,
+    emitCallIceCandidate,
+    emitCallEnd,
+    onCallOffer,
+    onCallAnswer,
+    onCallIceCandidate,
+    onCallEnd,
+    onCallError,
   };
 }
