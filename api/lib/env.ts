@@ -81,6 +81,20 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:admin@example.com"),
 
+  // ─── TURN (P-CALL-4, MASTER.md §14.3) ──────────────────────────────────
+  // Optional. Unset means calls stay on STUN only. The secret is the coturn
+  // static-auth-secret; it is never sent to the client. TURN_URLS is a
+  // comma-separated list of turn: or turns: URLs the browser should use.
+  // Empty in .env.example must stay unset, not fail min(1) at boot.
+  TURN_SECRET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(1).optional()
+  ),
+  TURN_URLS: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().optional()
+  ),
+
   S3_FORCE_PATH_STYLE: z
     .enum(["true", "false"])
     .default("true")

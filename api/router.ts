@@ -7,6 +7,7 @@ import { pushRouter } from "./push-router";
 import { adminRouter } from "./admin-router";
 import { userRouter } from "./user-router";
 import { linkRouter } from "./link-router";
+import { turnRouter } from "./call-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -20,6 +21,7 @@ export const appRouter = createRouter({
   admin: adminRouter,
   user: userRouter,
   link: linkRouter,
+  turn: turnRouter,
 });
 
 export type AppRouter = typeof appRouter;

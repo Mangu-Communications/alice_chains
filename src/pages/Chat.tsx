@@ -822,7 +822,7 @@ export default function Chat() {
               <div className="flex items-center gap-1">
                 {/*
                   P-CALL-2/3: voice and video buttons on the real call flow.
-                  Search is live as of P-SEARCH-1. TURN is P-CALL-4.
+                  Search is live as of P-SEARCH-1. TURN credentials are P-CALL-4.
                 */}
                 <VoiceCallPanel
                   selfId={user?.id ?? null}

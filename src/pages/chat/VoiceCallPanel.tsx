@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n";
 import { useVoiceCall } from "@/hooks/useVoiceCall";
 import { canStartVoiceCall } from "@/lib/voice-call";
+import { trpc } from "@/providers/trpc";
 
 type SocketApi = Parameters<typeof useVoiceCall>[1];
 
@@ -13,7 +14,7 @@ function bindStream(node: HTMLVideoElement | null, stream: MediaStream | null) {
 }
 
 /**
- * P-CALL-2/3. 1:1 voice and video controls. Groups stay text. TURN is P-CALL-4.
+ * P-CALL-2/3/4. 1:1 voice and video controls. Groups stay text. TURN credentials are fetched per call.
  */
 export function VoiceCallPanel({
   selfId,
@@ -32,7 +33,12 @@ export function VoiceCallPanel({
   conversations: readonly { id: number; displayName: string }[];
   socket: SocketApi;
 }) {
-  const call = useVoiceCall(selfId, socket);
+  const utils = trpc.useUtils();
+  const getIceServers = useCallback(
+    () => utils.turn.iceServers.fetch().then((issued) => issued.iceServers),
+    [utils]
+  );
+  const call = useVoiceCall(selfId, socket, getIceServers);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const localRef = useRef<HTMLVideoElement>(null);
   const callerName =
