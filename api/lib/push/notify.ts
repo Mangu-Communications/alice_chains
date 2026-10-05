@@ -112,3 +112,71 @@ function bodyFor(content: string, hasAttachment: boolean): string {
   if (content.length <= PREVIEW_LENGTH) return content;
   return `${content.slice(0, PREVIEW_LENGTH - 1)}…`;
 }
+
+export interface IncomingCallNotification {
+  conversationId: number;
+  callId: string;
+  callerId: number;
+  callerName: string | null;
+  calleeId: number;
+  kind: "audio" | "video";
+}
+
+/**
+ * A call is directed at one member, so mentions-only still rings.
+ * Off stays off: the member asked not to be interrupted in this room.
+ */
+export function wantsCallNotification(level: "all" | "mentions" | "off"): boolean {
+  return level !== "off";
+}
+
+export function incomingCallCopy(kind: "audio" | "video", callerName: string | null) {
+  const caller = callerName?.trim() || "Someone";
+  return {
+    title: caller,
+    body: kind === "video" ? "Incoming video call" : "Incoming voice call",
+  };
+}
+
+/**
+ * Push an incoming call to a member who has no open socket.
+ * Never throws. Does not relay media and does not invent VAPID keys.
+ */
+export async function notifyIncomingCall(input: IncomingCallNotification): Promise<void> {
+  if (!pushIsConfigured()) return;
+  if (input.calleeId === input.callerId) return;
+
+  try {
+    const [members, blocked] = await Promise.all([
+      getDb()
+        .select({
+          userId: conversationParticipants.userId,
+          notifyLevel: conversationParticipants.notifyLevel,
+        })
+        .from(conversationParticipants)
+        .where(eq(conversationParticipants.conversationId, input.conversationId)),
+      blockedWith(input.callerId),
+    ]);
+
+    const callee = members.find((member) => member.userId === input.calleeId);
+    if (!callee || blocked.has(input.calleeId) || !wantsCallNotification(callee.notifyLevel)) {
+      return;
+    }
+
+    const copy = incomingCallCopy(input.kind, input.callerName);
+    await sendToUsers([input.calleeId], {
+      title: copy.title,
+      body: copy.body,
+      url: `/chat?c=${input.conversationId}`,
+      tag: `call-${input.callId}`,
+      urgency: "high",
+      requireInteraction: true,
+    });
+  } catch (error) {
+    log.error("call push notification failed", {
+      conversationId: input.conversationId,
+      callId: input.callId,
+      error,
+    });
+  }
+}

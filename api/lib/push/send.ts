@@ -38,6 +38,10 @@ export interface NotificationPayload {
   /** Collapses several notifications for one conversation into the latest. */
   tag: string;
   icon?: string;
+  /** Web Push urgency. Calls use high so a closed tab still wakes. */
+  urgency?: "very-low" | "low" | "normal" | "high";
+  /** Ask the service worker to keep the notification until the member acts. */
+  requireInteraction?: boolean;
 }
 
 export interface DeliveryResult {
@@ -84,7 +88,7 @@ async function deliverOne(
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
         TTL: String(PUSH_TTL_SECONDS),
-        Urgency: "normal",
+        Urgency: payload.urgency ?? "normal",
       },
       body: new Uint8Array(body),
     });
