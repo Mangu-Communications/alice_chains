@@ -3,6 +3,7 @@ import {
   applyVoiceCall,
   canStartVoiceCall,
   idleVoiceCall,
+  mediaConstraints,
   qualityFromIce,
   type CallOfferEvent,
 } from "./voice-call";
@@ -74,20 +75,37 @@ describe("applyVoiceCall", () => {
     expect(next.state.phase).toBe("idle");
   });
 
-  it("declines a video offer; camera UI is P-CALL-3", () => {
+  it("rings on a video offer and keeps kind video", () => {
     const next = applyVoiceCall(idleVoiceCall(), {
       type: "offer",
       event: offer({ kind: "video" }),
       selfId: 2,
     });
-    expect(next.state.phase).toBe("idle");
-    expect(next.effect).toEqual({
-      type: "reply-end",
+    expect(next.effect).toEqual({ type: "none" });
+    expect(next.state).toMatchObject({
+      phase: "incoming",
+      kind: "video",
+      peerUserId: 8,
+      remoteSdp: "v=0",
+    });
+  });
+
+  it("stores video on an outgoing start and defaults a bare start to audio", () => {
+    const video = applyVoiceCall(idleVoiceCall(), {
+      type: "start",
       callId: "c1",
       conversationId: 4,
-      targetUserId: 8,
-      reason: "failed",
+      peerUserId: 8,
+      kind: "video",
     });
+    expect(video.state.kind).toBe("video");
+    const audio = applyVoiceCall(idleVoiceCall(), {
+      type: "start",
+      callId: "c2",
+      conversationId: 4,
+      peerUserId: 8,
+    });
+    expect(audio.state.kind).toBe("audio");
   });
 
   it("replies busy when an offer arrives during a live call", () => {
@@ -198,5 +216,12 @@ describe("qualityFromIce", () => {
     expect(qualityFromIce("completed")).toBe("good");
     expect(qualityFromIce("disconnected")).toBe("poor");
     expect(qualityFromIce("failed")).toBe("failed");
+  });
+});
+
+describe("mediaConstraints", () => {
+  it("requests the camera only for a video call", () => {
+    expect(mediaConstraints("audio")).toEqual({ audio: true, video: false });
+    expect(mediaConstraints("video")).toEqual({ audio: true, video: true });
   });
 });

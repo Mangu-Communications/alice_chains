@@ -1,4 +1,5 @@
-import { Phone, PhoneOff, Mic, MicOff } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n";
 import { useVoiceCall } from "@/hooks/useVoiceCall";
@@ -6,8 +7,13 @@ import { canStartVoiceCall } from "@/lib/voice-call";
 
 type SocketApi = Parameters<typeof useVoiceCall>[1];
 
+function bindStream(node: HTMLVideoElement | null, stream: MediaStream | null) {
+  if (!node) return;
+  if (node.srcObject !== stream) node.srcObject = stream;
+}
+
 /**
- * P-CALL-2. 1:1 voice controls. The video button stays absent until P-CALL-3.
+ * P-CALL-2/3. 1:1 voice and video controls. Groups stay text. TURN is P-CALL-4.
  */
 export function VoiceCallPanel({
   selfId,
@@ -27,6 +33,8 @@ export function VoiceCallPanel({
   socket: SocketApi;
 }) {
   const call = useVoiceCall(selfId, socket);
+  const remoteRef = useRef<HTMLVideoElement>(null);
+  const localRef = useRef<HTMLVideoElement>(null);
   const callerName =
     (call.session.conversationId !== null
       ? conversations.find((c) => c.id === call.session.conversationId)?.displayName
@@ -38,6 +46,7 @@ export function VoiceCallPanel({
   });
   const live = call.session.phase !== "idle" && call.session.phase !== "ended";
   const ended = call.session.phase === "ended";
+  const video = call.session.kind === "video";
   const qualityLabel =
     call.quality === "good"
       ? t("call.quality.good")
@@ -47,41 +56,85 @@ export function VoiceCallPanel({
           ? t("call.quality.failed")
           : t("call.quality.connecting");
 
+  useEffect(() => {
+    bindStream(remoteRef.current, call.remoteStream);
+  }, [call.remoteStream, video, live]);
+
+  useEffect(() => {
+    bindStream(localRef.current, call.localStream);
+  }, [call.localStream, video, live]);
+
+  const status =
+    call.session.phase === "incoming"
+      ? video
+        ? t("call.incomingVideo", callerName)
+        : t("call.incoming", callerName)
+      : call.session.phase === "outgoing"
+        ? video
+          ? t("call.outgoingVideo", callerName)
+          : t("call.outgoing", callerName)
+        : call.session.phase === "connected" || call.session.phase === "connecting"
+          ? video
+            ? t("call.connectedVideo")
+            : t("call.connected")
+          : call.session.endReason === "offline"
+            ? t("call.offline")
+            : call.session.endReason === "busy"
+              ? t("call.busy")
+              : call.session.endReason === "decline"
+                ? t("call.declined")
+                : call.session.endReason === "failed"
+                  ? t("call.failed")
+                  : t("call.ended");
+
   return (
     <>
       {showButton && conversationId !== null && peerUserId !== null && (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t("a11y.startCall")}
-          onClick={() => void call.start(conversationId, peerUserId)}
-        >
-          <Phone className="w-4 h-4" />
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("a11y.startCall")}
+            onClick={() => void call.start(conversationId, peerUserId, "audio")}
+          >
+            <Phone className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("a11y.startVideoCall")}
+            onClick={() => void call.start(conversationId, peerUserId, "video")}
+          >
+            <Video className="w-4 h-4" />
+          </Button>
+        </>
       )}
       {(live || ended) && (
         <div
           role="dialog"
-          aria-label={t("a11y.startCall")}
-          className="fixed bottom-4 right-4 z-50 w-72 rounded-lg border border-border bg-card p-4 shadow-lg"
+          aria-label={video ? t("a11y.startVideoCall") : t("a11y.startCall")}
+          className={`fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-card p-4 shadow-lg ${video ? "w-80" : "w-72"}`}
         >
-          <p className="text-sm font-medium">
-            {call.session.phase === "incoming"
-              ? t("call.incoming", callerName)
-              : call.session.phase === "outgoing"
-                ? t("call.outgoing", callerName)
-                : call.session.phase === "connected" || call.session.phase === "connecting"
-                  ? t("call.connected")
-                  : call.session.endReason === "offline"
-                    ? t("call.offline")
-                    : call.session.endReason === "busy"
-                      ? t("call.busy")
-                      : call.session.endReason === "decline"
-                        ? t("call.declined")
-                        : call.session.endReason === "failed"
-                          ? t("call.failed")
-                          : t("call.ended")}
-          </p>
+          {video && live && (
+            <div className="relative mb-3 aspect-video overflow-hidden rounded-md bg-muted">
+              <video
+                ref={remoteRef}
+                autoPlay
+                playsInline
+                aria-label={t("call.remoteVideo")}
+                className="h-full w-full object-cover"
+              />
+              <video
+                ref={localRef}
+                autoPlay
+                muted
+                playsInline
+                aria-label={t("call.localVideo")}
+                className="absolute bottom-2 right-2 h-16 w-24 rounded border border-border object-cover"
+              />
+            </div>
+          )}
+          <p className="text-sm font-medium">{status}</p>
           {live && (
             <p className="mt-1 text-xs text-muted-foreground">{qualityLabel}</p>
           )}
@@ -100,6 +153,16 @@ export function VoiceCallPanel({
                 onClick={call.toggleMute}
               >
                 {call.muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+            {live && video && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={call.cameraOff ? t("a11y.cameraOn") : t("a11y.cameraOff")}
+                onClick={call.toggleCamera}
+              >
+                {call.cameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
               </Button>
             )}
             {live && (

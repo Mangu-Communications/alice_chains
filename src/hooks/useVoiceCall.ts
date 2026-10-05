@@ -4,8 +4,10 @@ import {
   createCallId,
   DEFAULT_ICE_SERVERS,
   idleVoiceCall,
+  mediaConstraints,
   qualityFromIce,
   type CallEndReason,
+  type CallKind,
   type VoiceCallState,
 } from "@/lib/voice-call";
 import type { useSocket } from "@/hooks/useSocket";
@@ -24,13 +26,15 @@ type SocketApi = Pick<
 >;
 
 /**
- * P-CALL-2. Places a 1:1 audio call on the P-CALL-1 socket events.
- * No camera (P-CALL-3). No TURN credential fetch (P-CALL-4). No ICE restart
- * (P-CALL-5).
+ * P-CALL-2/3. Places a 1:1 audio or video call on the P-CALL-1 socket events.
+ * No TURN credential fetch (P-CALL-4). No ICE restart (P-CALL-5).
  */
 export function useVoiceCall(selfId: number | null, socket: SocketApi) {
   const [session, setSession] = useState<VoiceCallState>(idleVoiceCall);
   const [muted, setMuted] = useState(false);
+  const [cameraOff, setCameraOff] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [quality, setQuality] = useState<ReturnType<typeof qualityFromIce>>("connecting");
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -44,7 +48,10 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
     localStreamRef.current = null;
     pcRef.current?.close();
     pcRef.current = null;
+    setLocalStream(null);
+    setRemoteStream(null);
     setMuted(false);
+    setCameraOff(false);
     setQuality("connecting");
   }, []);
 
@@ -90,7 +97,11 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
     (callId: string, conversationId: number, peerUserId: number, stream: MediaStream) => {
       const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
       pcRef.current = pc;
-      for (const track of stream.getAudioTracks()) pc.addTrack(track, stream);
+      for (const track of stream.getTracks()) pc.addTrack(track, stream);
+      pc.ontrack = (event) => {
+        const [streamFromPeer] = event.streams;
+        if (streamFromPeer) setRemoteStream(streamFromPeer);
+      };
       pc.onicecandidate = (event) => {
         if (!event.candidate) return;
         socket.emitCallIceCandidate({
@@ -112,14 +123,15 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
   );
 
   const start = useCallback(
-    async (conversationId: number, peerUserId: number) => {
+    async (conversationId: number, peerUserId: number, kind: CallKind = "audio") => {
       if (selfId === null) return;
       const callId = createCallId();
-      const started = transition({ type: "start", callId, conversationId, peerUserId });
+      const started = transition({ type: "start", callId, conversationId, peerUserId, kind });
       if (started.phase !== "outgoing") return;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints(started.kind ?? kind));
         localStreamRef.current = stream;
+        setLocalStream(stream);
         const pc = openPeer(callId, conversationId, peerUserId, stream);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -128,7 +140,7 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
           callId,
           targetUserId: peerUserId,
           sdp: offer.sdp ?? "",
-          kind: "audio",
+          kind: started.kind === "video" ? "video" : "audio",
         });
       } catch {
         transition({ type: "local-end", reason: "failed" });
@@ -143,8 +155,11 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
     const accepted = transition({ type: "accept" });
     if (accepted.phase !== "connecting" || accepted.peerUserId === null || accepted.conversationId === null) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const stream = await navigator.mediaDevices.getUserMedia(
+        mediaConstraints(accepted.kind === "video" ? "video" : "audio"),
+      );
       localStreamRef.current = stream;
+      setLocalStream(stream);
       const pc = openPeer(accepted.callId!, accepted.conversationId, accepted.peerUserId, stream);
       await pc.setRemoteDescription({ type: "offer", sdp: accepted.remoteSdp! });
       await flushIce(pc);
@@ -174,6 +189,14 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
     for (const track of tracks) track.enabled = !next;
     setMuted(next);
   }, [muted]);
+
+  const toggleCamera = useCallback(() => {
+    const tracks = localStreamRef.current?.getVideoTracks() ?? [];
+    if (tracks.length === 0) return;
+    const next = !cameraOff;
+    for (const track of tracks) track.enabled = !next;
+    setCameraOff(next);
+  }, [cameraOff]);
 
   useEffect(() => {
     if (selfId === null) return;
@@ -229,5 +252,18 @@ export function useVoiceCall(selfId: number | null, socket: SocketApi) {
 
   useEffect(() => () => stopMedia(), [stopMedia]);
 
-  return { session, quality, muted, start, accept, hangup, toggleMute, dismiss: () => transition({ type: "reset" }) };
+  return {
+    session,
+    quality,
+    muted,
+    cameraOff,
+    localStream,
+    remoteStream,
+    start,
+    accept,
+    hangup,
+    toggleMute,
+    toggleCamera,
+    dismiss: () => transition({ type: "reset" }),
+  };
 }
