@@ -76,6 +76,10 @@ export const en = {
   // Read aloud by a screen reader as they change, so they are written as
   // complete sentences rather than fragments.
   "live.newMessageFrom": (name: string) => `New message from ${name}`,
+  "live.newMessageBody": (name: string, excerpt: string) =>
+    `New message from ${name}. ${excerpt}`,
+  "live.newAttachmentFrom": (name: string) =>
+    `New message from ${name}. Sent an attachment.`,
   "live.newMessageIn": (conversation: string, name: string) =>
     `New message in ${conversation} from ${name}`,
   "live.messageSent": "Message sent",
