@@ -9,6 +9,9 @@
  * hide the very attribute being looked for, which is how the first pass of
  * this audit produced a false positive.
  *
+ * P-A11Y-1 also rejects hover-only action rows that keyboard focus does not
+ * reveal. A control that stays at opacity 0 until :hover is not reachable.
+ *
  *   npm run check:a11y
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -59,6 +62,16 @@ function readTag(src, start) {
 const ICON_ONLY = /^\s*<[A-Z]\w*\s[^>]*\/>\s*<\/(button|Button)>/;
 const findings = [];
 
+const FOCUS_REVEAL =
+  /(?:^|\s)(?:focus|focus-visible|focus-within|group-focus-within):opacity-100(?:\s|$)/;
+
+function hoverActionsHideKeyboardFocus(className) {
+  const hidesUntilHover =
+    className.includes("opacity-0") && className.includes("group-hover:opacity-100");
+  if (!hidesUntilHover) return false;
+  return !FOCUS_REVEAL.test(className);
+}
+
 for (const file of ROOTS.flatMap(walk)) {
   if (SKIP.some((prefix) => file.startsWith(prefix))) continue;
   const src = readFileSync(file, "utf8");
@@ -74,19 +87,36 @@ for (const file of ROOTS.flatMap(walk)) {
     const isIconOnly = ICON_ONLY.test(after) || /size="icon"/.test(tag);
     if (!isIconOnly) continue;
 
-    findings.push({ file, line: src.slice(0, match.index).split("\n").length });
+    findings.push({ file, line: src.slice(0, match.index).split("\n").length, kind: "name" });
+  }
+
+  for (const match of src.matchAll(/className=(?:"([^"]+)"|\{`([^`]+)`\})/g)) {
+    const className = match[1] ?? match[2] ?? "";
+    if (!hoverActionsHideKeyboardFocus(className)) continue;
+    findings.push({
+      file,
+      line: src.slice(0, match.index).split("\n").length,
+      kind: "keyboard",
+    });
   }
 }
 
 if (findings.length === 0) {
-  console.log("\nEvery icon-only control has an accessible name.\n");
+  console.log("\nEvery icon-only control has an accessible name, and hover-only actions reveal on focus.\n");
   process.exit(0);
 }
 
-console.error("\nIcon-only controls with no accessible name:\n");
-for (const { file, line } of findings) console.error(`  ${file}:${line}`);
+const unnamed = findings.filter((finding) => finding.kind === "name");
+const hidden = findings.filter((finding) => finding.kind === "keyboard");
+if (unnamed.length > 0) {
+  console.error("\nIcon-only controls with no accessible name:\n");
+  for (const { file, line } of unnamed) console.error(`  ${file}:${line}`);
+}
+if (hidden.length > 0) {
+  console.error("\nHover-only actions that keyboard focus does not reveal:\n");
+  for (const { file, line } of hidden) console.error(`  ${file}:${line}`);
+}
 console.error(
-  `\n${findings.length} found. Add an aria-label — a screen reader announces ` +
-    `these as "button" and nothing else.\n`
+  `\n${findings.length} found. Name icon-only controls, and reveal hover-only actions with focus-visible or focus-within.\n`,
 );
 process.exit(1);

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { ConversationSidebar } from "@/pages/chat/ConversationSidebar";
 import { MessageThread } from "@/pages/chat/MessageThread";
+import { CONVERSATION_SKIP_TARGET_ID } from "@/lib/keyboard-nav";
 import { MessageComposer } from "@/pages/chat/MessageComposer";
 import { GroupSettingsDialog } from "@/pages/chat/GroupSettingsDialog";
 import { VoiceCallPanel } from "@/pages/chat/VoiceCallPanel";
@@ -756,6 +757,12 @@ export default function Chat() {
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
+      <a
+        href={`#${CONVERSATION_SKIP_TARGET_ID}`}
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-3 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground"
+      >
+        {t("a11y.skipToConversation")}
+      </a>
       <LiveRegion message={announcement} />
       <ConversationSidebar
         sidebarOpen={sidebarOpen}
@@ -776,7 +783,11 @@ export default function Chat() {
       />
 
       {/* Chat Area */}
-      <main className="flex-1 flex flex-col h-full bg-background/50">
+      <main
+        id={CONVERSATION_SKIP_TARGET_ID}
+        tabIndex={-1}
+        className="flex-1 flex flex-col h-full bg-background/50 outline-none"
+      >
         <InstallPromptBanner />
         {activeConversation && activeConversationId ? (
           <>
