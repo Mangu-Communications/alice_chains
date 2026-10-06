@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n";
 import { useVoiceCall } from "@/hooks/useVoiceCall";
 import { canStartVoiceCall } from "@/lib/voice-call";
+import {
+  callPanelDismissKey,
+  callPanelInitialAction,
+  nextFocusIndex,
+} from "@/lib/keyboard-nav";
 import { trpc } from "@/providers/trpc";
 
 type SocketApi = Parameters<typeof useVoiceCall>[1];
@@ -42,6 +47,8 @@ export function VoiceCallPanel({
   const call = useVoiceCall(selfId, socket, getIceServers);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const localRef = useRef<HTMLVideoElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const callerName =
     (call.session.conversationId !== null
       ? conversations.find((c) => c.id === call.session.conversationId)?.displayName
@@ -70,6 +77,35 @@ export function VoiceCallPanel({
   useEffect(() => {
     bindStream(localRef.current, call.localStream);
   }, [call.localStream, video, live]);
+
+  const dialogOpen = live || ended;
+  useEffect(() => {
+    if (!dialogOpen) return;
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const action = callPanelInitialAction(call.session.phase);
+    panelRef.current?.querySelector<HTMLElement>(`[data-call-action="${action}"]`)?.focus();
+    return () => {
+      returnFocusRef.current?.focus();
+    };
+  }, [dialogOpen, call.session.phase]);
+
+  function onDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (callPanelDismissKey(event.key)) {
+      event.preventDefault();
+      if (call.session.phase === "ended") call.dismiss();
+      else call.hangup(call.session.phase === "incoming" ? "decline" : "hangup");
+      return;
+    }
+    if (event.key !== "Tab" || !panelRef.current) return;
+    const items = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>("button:not([disabled])"),
+    );
+    if (items.length === 0) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    items[nextFocusIndex(current, items.length, event.shiftKey)]?.focus();
+  }
 
   const status =
     call.session.phase === "incoming"
@@ -118,8 +154,11 @@ export function VoiceCallPanel({
       )}
       {(live || ended) && (
         <div
+          ref={panelRef}
           role="dialog"
-          aria-label={video ? t("a11y.startVideoCall") : t("a11y.startCall")}
+          aria-modal="true"
+          aria-labelledby="call-dialog-status"
+          onKeyDown={onDialogKeyDown}
           className={`fixed bottom-4 right-4 z-50 rounded-lg border border-border bg-card p-4 shadow-lg ${video ? "w-80" : "w-72"}`}
         >
           {video && live && (
@@ -141,13 +180,13 @@ export function VoiceCallPanel({
               />
             </div>
           )}
-          <p className="text-sm font-medium">{status}</p>
+          <p id="call-dialog-status" className="text-sm font-medium">{status}</p>
           {live && (
             <p className="mt-1 text-xs text-muted-foreground">{qualityLabel}</p>
           )}
           <div className="mt-3 flex items-center gap-2">
             {call.session.phase === "incoming" && (
-              <Button aria-label={t("a11y.acceptCall")} onClick={() => void call.accept()}>
+              <Button data-call-action="accept" aria-label={t("a11y.acceptCall")} onClick={() => void call.accept()}>
                 <Phone className="w-4 h-4" />
                 {t("a11y.acceptCall")}
               </Button>
@@ -174,6 +213,7 @@ export function VoiceCallPanel({
             )}
             {live && (
               <Button
+                data-call-action="end"
                 variant="destructive"
                 aria-label={
                   call.session.phase === "incoming" ? t("a11y.declineCall") : t("a11y.endCall")
@@ -187,7 +227,7 @@ export function VoiceCallPanel({
               </Button>
             )}
             {ended && (
-              <Button variant="ghost" onClick={call.dismiss}>
+              <Button data-call-action="dismiss" variant="ghost" onClick={call.dismiss}>
                 {t("a11y.closeSearch")}
               </Button>
             )}

@@ -5,7 +5,7 @@
  * caret insert, outbox send, and the height effect. This component renders
  * the same input the page used to render inline.
  */
-import type { ClipboardEvent, KeyboardEvent, RefObject } from "react";
+import { useEffect, type ClipboardEvent, type KeyboardEvent, type RefObject } from "react";
 import { Paperclip, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -61,6 +61,11 @@ export function MessageComposer({
   onInsertEmoji,
   onSend,
 }: MessageComposerProps) {
+  useEffect(() => {
+    if (!replyingTo) return;
+    composerRef.current?.focus();
+  }, [replyingTo, composerRef]);
+
   return (
     <div className="p-4 border-t border-border">
       {replyingTo && (
@@ -74,6 +79,7 @@ export function MessageComposer({
             </p>
           </div>
           <button
+            type="button"
             onClick={onCancelReply}
             aria-label={t("a11y.cancelReply")}
             className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
@@ -86,6 +92,7 @@ export function MessageComposer({
         <input
           ref={fileInputRef}
           type="file"
+          tabIndex={-1}
           className="sr-only"
           accept={ALLOWED_MIME_TYPES.join(",")}
           onChange={(e) => onFilesSelected(e.target.files)}

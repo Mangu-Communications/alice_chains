@@ -4,7 +4,7 @@
  * "View Profile" was a menu item that did nothing until F-8 removed it. This is
  * the page it should have opened.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Upload, LogOut } from "lucide-react";
@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { t } from "@/i18n";
 import { applyTheme, resolveTheme, THEME_COLORS, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
+import { nextTheme } from "@/lib/keyboard-nav";
 import { InstallPromptSettings } from "@/components/InstallPrompt";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -133,6 +134,22 @@ export default function Settings() {
 
   const nameChanged = profile ? name.trim() !== (profile.name ?? "") : false;
   const statusChanged = profile ? status.trim() !== (profile.status ?? "") : false;
+  const canSave =
+    !updateProfile.isPending && (nameChanged || statusChanged) && name.trim().length > 0;
+
+  function saveProfile() {
+    if (!canSave) return;
+    updateProfile.mutate({
+      ...(nameChanged ? { name: name.trim() } : {}),
+      ...(statusChanged ? { status: status.trim() } : {}),
+    });
+  }
+
+  function onProfileKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    saveProfile();
+  }
 
   return (
     <div className="h-screen w-full bg-background flex flex-col">
@@ -169,11 +186,13 @@ export default function Settings() {
                     <input
                       ref={fileInputRef}
                       type="file"
+                      tabIndex={-1}
                       className="sr-only"
                       accept={ALLOWED_IMAGE_TYPES.join(",")}
                       onChange={(e) => handleAvatarSelected(e.target.files)}
                     />
                     <Button
+                      type="button"
                       variant="secondary"
                       size="sm"
                       className="gap-2"
@@ -218,6 +237,7 @@ export default function Settings() {
                     value={name}
                     maxLength={MAX_DISPLAY_NAME_LENGTH}
                     onChange={(e) => setName(e.target.value)}
+                    onKeyDown={onProfileKeyDown}
                   />
                 </div>
 
@@ -230,25 +250,14 @@ export default function Settings() {
                     value={status}
                     maxLength={MAX_STATUS_LENGTH}
                     onChange={(e) => setStatus(e.target.value)}
+                    onKeyDown={onProfileKeyDown}
                   />
                   <p className="text-[11px] text-muted-foreground text-right tabular-nums">
                     {status.length} / {MAX_STATUS_LENGTH}
                   </p>
                 </div>
 
-                <Button
-                  onClick={() =>
-                    updateProfile.mutate({
-                      ...(nameChanged ? { name: name.trim() } : {}),
-                      ...(statusChanged ? { status: status.trim() } : {}),
-                    })
-                  }
-                  disabled={
-                    updateProfile.isPending ||
-                    (!nameChanged && !statusChanged) ||
-                    name.trim().length === 0
-                  }
-                >
+                <Button type="button" onClick={saveProfile} disabled={!canSave}>
                   {updateProfile.isPending ? "Saving…" : "Save changes"}
                 </Button>
               </section>
@@ -258,11 +267,25 @@ export default function Settings() {
                 <p className="text-xs text-muted-foreground">
                   Switches colour tokens only. Layout stays the same. Dark is the default.
                 </p>
-                <div className="flex gap-2" role="group" aria-label="Colour theme">
+                <div
+                  className="flex gap-2"
+                  role="radiogroup"
+                  aria-label="Colour theme"
+                  onKeyDown={(event) => {
+                    const next = nextTheme(theme, event.key);
+                    if (!next) return;
+                    event.preventDefault();
+                    chooseTheme(next);
+                    const radios = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
+                    (next === "light" ? radios[0] : radios[1])?.focus();
+                  }}
+                >
                   <Button
                     type="button"
                     variant={theme === "light" ? "default" : "secondary"}
-                    aria-pressed={theme === "light"}
+                    role="radio"
+                    aria-checked={theme === "light"}
+                    tabIndex={theme === "light" ? 0 : -1}
                     onClick={() => chooseTheme("light")}
                   >
                     Light
@@ -270,7 +293,9 @@ export default function Settings() {
                   <Button
                     type="button"
                     variant={theme === "dark" ? "default" : "secondary"}
-                    aria-pressed={theme === "dark"}
+                    role="radio"
+                    aria-checked={theme === "dark"}
+                    tabIndex={theme === "dark" ? 0 : -1}
                     onClick={() => chooseTheme("dark")}
                   >
                     Dark

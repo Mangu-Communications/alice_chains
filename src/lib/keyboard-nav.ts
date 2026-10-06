@@ -26,3 +26,34 @@ export function dialogDismissKey(key: string): boolean {
 export function menuMovesWithArrows(key: string): boolean {
   return key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End";
 }
+
+/** Escape leaves the call dialog: decline, hang up, or dismiss the ended card. */
+export function callPanelDismissKey(key: string): boolean {
+  return key === "Escape";
+}
+
+export function callPanelInitialAction(
+  phase: "idle" | "incoming" | "outgoing" | "connecting" | "connected" | "ended",
+): "accept" | "end" | "dismiss" {
+  if (phase === "incoming") return "accept";
+  if (phase === "ended") return "dismiss";
+  return "end";
+}
+
+/** Tab cycles inside a dialog. A missing current index starts at the edge Tab would enter. */
+export function nextFocusIndex(current: number, count: number, shift: boolean): number {
+  if (count <= 0) return 0;
+  if (current < 0) return shift ? count - 1 : 0;
+  if (shift) return (current - 1 + count) % count;
+  return (current + 1) % count;
+}
+
+export function themeMovesWithArrows(key: string): boolean {
+  return key === "ArrowLeft" || key === "ArrowRight" || key === "ArrowUp" || key === "ArrowDown";
+}
+
+export function nextTheme(current: "light" | "dark", key: string): "light" | "dark" | null {
+  if (!themeMovesWithArrows(key)) return null;
+  return current === "light" ? "dark" : "light";
+}
+
