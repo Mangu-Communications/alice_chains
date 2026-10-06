@@ -5,6 +5,7 @@
  * when the dialog opens. This component renders the same dialog the page
  * used to render inline.
  */
+import { useRef } from "react";
 import { LogOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -82,11 +84,22 @@ export function GroupSettingsDialog({
   onTransfer,
   onLeave,
 }: GroupSettingsDialogProps) {
+  const nameInputRef = useRef<HTMLInputElement>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onOpenAutoFocus={(event) => {
+          // Opening from a menu item unmounts the trigger, so focus would land on body.
+          event.preventDefault();
+          nameInputRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Group settings</DialogTitle>
+          <DialogDescription>
+            Change the name, members, or leave. Escape closes this dialog.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
           <div className="space-y-2">
@@ -96,6 +109,7 @@ export function GroupSettingsDialog({
             <div className="flex gap-2">
               <Input
                 id="group-name"
+                ref={nameInputRef}
                 value={nameDraft}
                 onChange={(e) => onNameDraftChange(e.target.value)}
                 maxLength={100}

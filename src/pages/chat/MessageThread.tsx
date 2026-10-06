@@ -282,6 +282,7 @@ export function MessageThread({
                     )}
                     {!msg.deletedAt && editingMessageId !== msg.id && (
                       <button
+                        type="button"
                         onClick={() => onReply(msg)}
                         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus:opacity-100 transition-opacity ml-1"
                         aria-label={t("a11y.replyToMessage")}
@@ -293,6 +294,7 @@ export function MessageThread({
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
+                            type="button"
                             className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus:opacity-100 transition-opacity ml-1"
                             aria-label={t("a11y.addReaction")}
                           >
@@ -304,14 +306,14 @@ export function MessageThread({
                           className="flex gap-1 p-1 min-w-0"
                         >
                           {REACTION_EMOJI.map((emoji) => (
-                            <button
+                            <DropdownMenuItem
                               key={emoji}
-                              onClick={() => onReact(msg.id, emoji)}
-                              className="text-lg leading-none p-1.5 rounded-md hover:bg-secondary transition-colors"
+                              onSelect={() => onReact(msg.id, emoji)}
+                              className="text-lg leading-none p-1.5 rounded-md justify-center"
                               aria-label={t("a11y.reactWith", emoji)}
                             >
                               {emoji}
-                            </button>
+                            </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -320,6 +322,7 @@ export function MessageThread({
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
+                            type="button"
                             className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus:opacity-100 transition-opacity ml-1"
                             aria-label={t("a11y.messageActions")}
                           >

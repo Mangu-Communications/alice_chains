@@ -17,3 +17,12 @@ export function hoverActionsHideKeyboardFocus(className: string): boolean {
   if (!hidesUntilHover) return false;
   return !FOCUS_REVEAL.test(className);
 }
+
+/** Escape dismisses a dialog or menu. Arrow keys move inside a menu, not a raw button row. */
+export function dialogDismissKey(key: string): boolean {
+  return key === "Escape";
+}
+
+export function menuMovesWithArrows(key: string): boolean {
+  return key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End";
+}
