@@ -27,6 +27,7 @@ import {
   MESSAGE_PAGE_SIZE,
   nextOlderCursor,
 } from "@/pages/chat/message-pagination";
+import { incomingMessageAnnouncement } from "@/pages/chat/message-announce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,6 +151,41 @@ export default function Chat() {
     () => (messagePages ? flattenMessagePages(messagePages.pages) : undefined),
     [messagePages]
   );
+
+  // P-A11Y-2. Seed the newest id when a conversation opens so history is not
+  // read out. A later higher id is a message that arrived in the open thread.
+  const announcedConversationRef = useRef<number | null>(null);
+  const announcedMessageIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!activeConversationId) {
+      announcedConversationRef.current = null;
+      announcedMessageIdRef.current = null;
+      return;
+    }
+    if (announcedConversationRef.current !== activeConversationId) {
+      announcedConversationRef.current = activeConversationId;
+      announcedMessageIdRef.current = null;
+    }
+    // Undefined means the page has not loaded. An empty list is a real open
+    // thread: seed at 0 so the first arrival is announced, not swallowed.
+    if (!messages) return;
+    const newest = messages[messages.length - 1];
+    if (announcedMessageIdRef.current === null) {
+      announcedMessageIdRef.current = newest?.id ?? 0;
+      return;
+    }
+    if (!newest) return;
+    if (newest.id <= announcedMessageIdRef.current) return;
+    announcedMessageIdRef.current = newest.id;
+    const text = incomingMessageAnnouncement({
+      senderId: newest.senderId,
+      selfId: user?.id,
+      senderName: newest.senderName,
+      content: newest.deletedAt ? "" : newest.content,
+      attachmentCount: newest.attachments?.length ?? 0,
+    });
+    if (text) setAnnouncement(text);
+  }, [activeConversationId, messages, user?.id]);
 
   // F-1. Opening a conversation clears its badge. This writes
   // `conversation_participants.lastReadAt`, which is what `conversation.list`
@@ -408,11 +444,8 @@ export default function Chat() {
       if (message.conversationId === activeConversationId) {
         refetchMessages();
         if (message.senderId !== user?.id) {
-          // The DOM changes silently for a screen reader user, so say it.
-          setAnnouncement(
-            t("live.newMessageFrom", conversations?.find((c) => c.id === message.conversationId)
-              ?.participants.find((p) => p.userId === message.senderId)?.userName ?? "someone")
-          );
+          // P-A11Y-2. The spoken line is built from the row that lands in the
+          // open thread, not from this payload, so a refetch is enough here.
           // Two writes, two purposes: the receipt drives the sender's read
           // ticks, the read marker drives our own unread badge.
           socket.markAsRead([message.id], message.conversationId);
@@ -763,7 +796,6 @@ export default function Chat() {
       >
         {t("a11y.skipToConversation")}
       </a>
-      <LiveRegion message={announcement} />
       <ConversationSidebar
         sidebarOpen={sidebarOpen}
         isMobile={isMobile}
@@ -788,6 +820,8 @@ export default function Chat() {
         tabIndex={-1}
         className="flex-1 flex flex-col h-full bg-background/50 outline-none"
       >
+        {/* P-A11Y-2. Polite live region for the open conversation, inside the landmark. */}
+        <LiveRegion message={announcement} />
         <InstallPromptBanner />
         {activeConversation && activeConversationId ? (
           <>

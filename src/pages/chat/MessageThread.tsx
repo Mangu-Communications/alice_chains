@@ -140,7 +140,15 @@ export function MessageThread({
         entries are appended over time, which is what makes its
         "read new entries" behaviour work.
       */}
-      <div className="py-4 space-y-1" role="log" aria-label="Messages">
+      <div
+        className="py-4 space-y-1"
+        role="log"
+        aria-label="Messages"
+        // P-A11Y-2. The composed sentence lives in the conversation live
+        // region. Leaving this log polite would also read the new bubble,
+        // including its buttons, a second time.
+        aria-live="off"
+      >
         {hasOlder && (
           <div className="flex justify-center pb-3">
             <Button
