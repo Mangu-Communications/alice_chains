@@ -16,7 +16,8 @@
     --secondary: 220 14% 96%;
     --secondary-foreground: 222 47% 11%;
     --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    /* 42% lightness clears 4.5:1 on both background and muted (P-A11Y-3). */
+    --muted-foreground: 220 9% 42%;
     --accent: 220 14% 96%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 72% 51%;
@@ -42,28 +43,30 @@
     --card-foreground: 210 20% 95%;
     --popover: 220 15% 11%;
     --popover-foreground: 210 20% 95%;
-    --primary: 250 85% 65%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 250 85% 72%;
+    /* Dark ink on the lighter fill. White fails 4.5:1 once primary is light enough for text-primary. */
+    --primary-foreground: 250 40% 12%;
     --secondary: 220 13% 16%;
     --secondary-foreground: 210 20% 95%;
     --muted: 220 13% 20%;
-    --muted-foreground: 220 10% 55%;
+    /* 62% clears 4.5:1 on background and on muted (P-A11Y-3). */
+    --muted-foreground: 220 10% 62%;
     --accent: 220 13% 20%;
     --accent-foreground: 210 20% 95%;
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 72% 62%;
+    --destructive-foreground: 0 40% 10%;
     --border: 220 13% 18%;
     --input: 220 13% 18%;
-    --ring: 250 85% 65%;
+    --ring: 250 85% 72%;
     --radius: 0.625rem;
     --sidebar-background: 220 15% 8%;
     --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 250 85% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 250 85% 72%;
+    --sidebar-primary-foreground: 250 40% 12%;
     --sidebar-accent: 220 13% 16%;
     --sidebar-accent-foreground: 210 20% 95%;
     --sidebar-border: 220 13% 18%;
-    --sidebar-ring: 250 85% 65%;
+    --sidebar-ring: 250 85% 72%;
   }
 
   * {
