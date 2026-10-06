@@ -111,3 +111,11 @@
     @apply bg-card/80 backdrop-blur-xl border border-border/50;
   }
 }
+
+/* P-A11Y-4 (WCAG 2.4.7). Unlayered so it wins over Tailwind preflight and
+   focus-visible:outline-none on primitives. :focus-visible matches keyboard
+   focus only, so pointer clicks do not draw the ring. */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
