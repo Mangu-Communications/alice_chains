@@ -103,7 +103,9 @@ export async function revalidateSockets(server: SocketIOServer): Promise<number>
 
     // Tell the client why before cutting it off, so it can show "signed out"
     // rather than a bare reconnect loop.
-    socket.emit("sessionExpired");
+    // Empty object, not a bare emit: with connection state recovery a
+    // payload-less packet delivers the offset string as the first argument.
+    socket.emit("sessionExpired", {});
     socket.disconnect(true);
     dropped += 1;
   }
