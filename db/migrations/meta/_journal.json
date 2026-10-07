@@ -85,6 +85,13 @@
       "when": 1787695200000,
       "tag": "0011_notify_level",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787695600000,
+      "tag": "0012_alice_cost_daily",
+      "breakpoints": true
     }
   ]
 }
