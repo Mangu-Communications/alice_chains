@@ -3,6 +3,7 @@
  * Missing key and provider failures become the §7.6 system note.
  * A reached daily cap stores the §7.7 limit note and does not call Anthropic.
  * The human send already succeeded; the guest path stores the note instead of HTTP 402.
+ * A1-010 writes alice_invoke after a stored reply and alice_error on refusal.
  */
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -12,6 +13,7 @@ import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import type { AliceContextMessage } from "./alice-context";
 import { log } from "./logger";
+import { recordAliceError, recordAliceInvoke } from "./alice-audit";
 import {
   ALICE_LIMIT_NOTE,
   aliceCompletionCostUSD,
@@ -60,6 +62,7 @@ export async function deliverAliceReply(input: {
   triggerContent: string;
   context: AliceContextMessage[];
 }): Promise<"replied" | "error" | "capped"> {
+  const started = Date.now();
   try {
     const db = getDb();
     const date = utcCostDate();
@@ -74,6 +77,12 @@ export async function deliverAliceReply(input: {
         event: "alice.cost.cap",
         conversationId: input.conversationId,
         scope: instanceCapped ? "instance" : "conversation",
+      });
+      await recordAliceError({
+        actorId: input.aliceUserId,
+        conversationId: input.conversationId,
+        reason: "cost_cap",
+        durationMs: Date.now() - started,
       });
       await storeAliceNote(input.conversationId, input.aliceUserId, ALICE_LIMIT_NOTE, "system");
       return "capped";
@@ -122,6 +131,12 @@ export async function deliverAliceReply(input: {
         event: "alice.provider.missing_key",
         conversationId: input.conversationId,
       });
+      await recordAliceError({
+        actorId: input.aliceUserId,
+        conversationId: input.conversationId,
+        reason: "missing_key",
+        durationMs: Date.now() - started,
+      });
       await storeAliceNote(input.conversationId, input.aliceUserId, ALICE_ERROR_NOTE, "system");
       return "error";
     }
@@ -164,6 +179,17 @@ export async function deliverAliceReply(input: {
       : aliceFirstResponseFooter(completion.model, input.context.length);
     const content = withAliceFooter(completion.text, footer, MAX_MESSAGE_LENGTH);
     await storeAliceNote(input.conversationId, input.aliceUserId, content, "text");
+    await recordAliceInvoke({
+      actorId: input.aliceUserId,
+      conversationId: input.conversationId,
+      triggerMessageId: triggerLine?.id ?? null,
+      contextMessages: input.context.length,
+      inputTokens: completion.inputTokens ?? 0,
+      outputTokens: completion.outputTokens ?? 0,
+      costUSD,
+      modelVersion: completion.model,
+      durationMs: Date.now() - started,
+    });
     return "replied";
   } catch (error) {
     log.warn("alice provider failed", {
@@ -172,6 +198,12 @@ export async function deliverAliceReply(input: {
       error: error instanceof Error ? error.name : "error",
     });
     try {
+      await recordAliceError({
+        actorId: input.aliceUserId,
+        conversationId: input.conversationId,
+        reason: "provider_error",
+        durationMs: Date.now() - started,
+      });
       await storeAliceNote(input.conversationId, input.aliceUserId, ALICE_ERROR_NOTE, "system");
     } catch (storeError) {
       log.warn("alice error note failed", {

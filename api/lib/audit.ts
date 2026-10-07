@@ -24,7 +24,9 @@ export type AuditAction =
   | "account.deletion.request"
   | "account.deletion.cancel"
   | "account.purge"
-  | "session.revoke_all";
+  | "session.revoke_all"
+  | "alice_invoke"
+  | "alice_error";
 
 export interface AuditEntry {
   actorId: number | null;
