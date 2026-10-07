@@ -7,6 +7,7 @@ import {
   adminDecisionName,
   admissionDecisionCopy,
   isOpenAdmissionCard,
+  selectOriginalAliceMention,
 } from "./alice-admission";
 import { ALICE_ADMISSION_MARKER } from "./alice-mention";
 
@@ -30,6 +31,26 @@ describe("alice admission actions", () => {
     expect(isOpenAdmissionCard("Alice was declined by Morgan. This conversation remains AI-free.")).toBe(
       false,
     );
+  });
+
+  it("replies to the original @alice after Admit, not a later mention", () => {
+    const rows = [
+      { id: 1, senderId: 4, content: "earlier @alice please", type: "text", deletedAt: null },
+      { id: 2, senderId: 4, content: "@alice what is the plan", type: "text", deletedAt: null },
+      { id: 3, senderId: 7, content: "Alice is an AI.", type: "system", deletedAt: null },
+      { id: 4, senderId: 9, content: "@alice ignore this later one", type: "text", deletedAt: null },
+      { id: 5, senderId: 7, content: "@alice from Alice", type: "text", deletedAt: null },
+      { id: 6, senderId: 4, content: "@alice deleted", type: "text", deletedAt: "2026-10-07T00:00:00.000Z" },
+    ];
+    expect(selectOriginalAliceMention(rows, 3, 7)?.id).toBe(2);
+    expect(selectOriginalAliceMention(rows, 3, 7)?.content).toBe("@alice what is the plan");
+    expect(selectOriginalAliceMention(rows, 1, 7)).toBeNull();
+    const src = readFileSync("api/lib/alice-admission.ts", "utf8");
+    expect(src).toContain("replyAfterAliceAdmit");
+    expect(src).toContain('input.decision === "admit"');
+    expect(src).toContain("deliverAliceReply");
+    const declineBranch = src.slice(src.indexOf("if (input.decision === \"admit\")"));
+    expect(declineBranch.startsWith('if (input.decision === "admit")')).toBe(true);
   });
 
   it("remembers a decline in migration 0015", () => {

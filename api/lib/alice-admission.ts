@@ -3,16 +3,19 @@
  *
  * Admit adds the Alice user to conversationParticipants and replaces the card.
  * Decline replaces the card and is remembered so a later @alice does not open
- * another card. This slice does not generate Alice's reply.
+ * another card. After Admit, Alice replies to the original @alice message.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { aliceDeclines, conversationParticipants, conversations, messages } from "@db/schema";
 import { getDb } from "../queries/connection";
-import { readAliceUserId } from "./alice-user";
-import { ALICE_ADMISSION_MARKER } from "./alice-mention";
+import { loadAliceContext, type AliceContextMessage } from "./alice-context";
+import { ALICE_ADMISSION_MARKER, mentionsAlice, readAliceContextMessages } from "./alice-mention";
+import { deliverAliceReply } from "./alice-reply";
+import { log } from "./logger";
 import { emitToConversation, emitToMembers } from "./realtime";
+import { readAliceUserId } from "./alice-user";
 
 export const ALICE_ADMITTED_PREFIX = "Alice has been admitted by ";
 export const ALICE_DECLINED_PREFIX = "Alice was declined by ";
@@ -136,6 +139,101 @@ export async function decideAliceAdmission(
   return { content, aliceUserId };
 }
 
+export type AdmissionTriggerCandidate = {
+  id: number;
+  senderId: number;
+  content: string;
+  type: string;
+  deletedAt: Date | string | null;
+};
+
+/**
+ * The message that opened the card: latest non-deleted text @alice before the card.
+ * Alice's own rows and later messages are not the original mention.
+ */
+export function selectOriginalAliceMention(
+  rows: AdmissionTriggerCandidate[],
+  cardId: number,
+  aliceUserId: number,
+): AdmissionTriggerCandidate | null {
+  const eligible = rows
+    .filter(
+      (row) =>
+        row.id < cardId &&
+        row.deletedAt == null &&
+        row.type === "text" &&
+        row.senderId !== aliceUserId &&
+        mentionsAlice(row.content),
+    )
+    .sort((a, b) => b.id - a.id);
+  return eligible[0] ?? null;
+}
+
+/**
+ * §7.4 step 2. After Admit, generate a reply to the original mention.
+ * Missing ALICE_API_KEY stays the existing error note inside deliverAliceReply.
+ */
+export async function replyAfterAliceAdmit(
+  input: { conversationId: number; cardId: number; aliceUserId: number },
+  db: AdmissionDb = getDb(),
+): Promise<"replied" | "error" | "no_trigger"> {
+  const rows = await db
+    .select({
+      id: messages.id,
+      senderId: messages.senderId,
+      content: messages.content,
+      type: messages.type,
+      deletedAt: messages.deletedAt,
+    })
+    .from(messages)
+    .where(and(eq(messages.conversationId, input.conversationId), lt(messages.id, input.cardId)))
+    .orderBy(desc(messages.id))
+    .limit(50);
+  const trigger = selectOriginalAliceMention(rows, input.cardId, input.aliceUserId);
+  if (!trigger) {
+    log.warn("alice admit has no original mention", {
+      event: "alice.admit.no_trigger",
+      conversationId: input.conversationId,
+    });
+    return "no_trigger";
+  }
+  const [membership] = await db
+    .select({ joinedAt: conversationParticipants.joinedAt })
+    .from(conversationParticipants)
+    .where(
+      and(
+        eq(conversationParticipants.conversationId, input.conversationId),
+        eq(conversationParticipants.userId, input.aliceUserId),
+      ),
+    )
+    .limit(1);
+  const rawJoined = membership?.joinedAt;
+  const joinedAt = rawJoined instanceof Date ? rawJoined : new Date(rawJoined ?? Date.now());
+  const context = await loadAliceContext(db, {
+    conversationId: input.conversationId,
+    joinedAt,
+    limit: readAliceContextMessages(),
+  });
+  const withTrigger: AliceContextMessage[] = context.some((row) => row.id === trigger.id)
+    ? context
+    : [
+        ...context,
+        {
+          id: trigger.id,
+          senderId: trigger.senderId,
+          content: trigger.content,
+          createdAt: new Date().toISOString(),
+          tombstone: false,
+        },
+      ];
+  return deliverAliceReply({
+    conversationId: input.conversationId,
+    aliceUserId: input.aliceUserId,
+    triggerContent: trigger.content,
+    context: withTrigger,
+  });
+}
+
 export async function applyAliceAdmission(input: {
   conversationId: number;
   messageId: number;
@@ -156,6 +254,24 @@ export async function applyAliceAdmission(input: {
   await emitToMembers(input.conversationId, "conversationUpdated", {
     conversationId: input.conversationId,
   });
+  if (input.decision === "admit") {
+    try {
+      await replyAfterAliceAdmit(
+        {
+          conversationId: input.conversationId,
+          cardId: input.messageId,
+          aliceUserId: decided.aliceUserId,
+        },
+        db,
+      );
+    } catch (error) {
+      log.warn("alice admit reply failed", {
+        event: "alice.admit.reply_failed",
+        conversationId: input.conversationId,
+        error: error instanceof Error ? error.name : "error",
+      });
+    }
+  }
   return { content: decided.content };
 }
 

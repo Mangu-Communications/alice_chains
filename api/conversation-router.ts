@@ -659,7 +659,7 @@ export const conversationRouter = createRouter({
       });
     }),
 
-  // A1-004. Admit or decline the open admission card. No model call.
+  // A1-004 / §7.4 step 2. Admit or decline. Admit replies to the original mention.
   aliceDecision: authedQuery
     .input(
       z.object({
