@@ -17,6 +17,7 @@ import { t } from "@/i18n";
 import { applyTheme, resolveTheme, THEME_COLORS, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import { nextTheme } from "@/lib/keyboard-nav";
 import { InstallPromptSettings } from "@/components/InstallPrompt";
+import AliceCostPanel from "./settings/AliceCostPanel";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_AVATAR_BYTES,
@@ -28,6 +29,10 @@ export default function Settings() {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const { data: profile, refetch } = trpc.user.myProfile.useQuery();
+  const me = trpc.auth.me.useQuery();
+  const aliceCosts = trpc.admin.aliceCosts.useQuery(undefined, {
+    enabled: me.data?.isAdmin === true,
+  });
 
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
@@ -304,6 +309,14 @@ export default function Settings() {
               </section>
 
               <InstallPromptSettings />
+
+              {me.data?.isAdmin && aliceCosts.data && (
+                <AliceCostPanel
+                  dashboard={aliceCosts.data.dashboard}
+                  instanceCapUSD={aliceCosts.data.instanceCapUSD}
+                  convCapUSD={aliceCosts.data.convCapUSD}
+                />
+              )}
 
               <section className="space-y-3 pt-4 border-t border-border">
                 <h2 className="text-sm font-semibold">Security</h2>
