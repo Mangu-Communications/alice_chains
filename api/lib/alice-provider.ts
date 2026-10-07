@@ -57,10 +57,25 @@ export function buildAliceSystemPrompt(input: {
   ].join("\n");
 }
 
+export const ALICE_USER_FENCE_MARK = "[user message]";
+
+/**
+ * §7.8. A triple-backtick block in user text is data, not a role switch.
+ * Prefix every fence so it cannot close an instruction block. Instructions
+ * stay in the system prompt; this does not mark the prompt confidential.
+ */
+export function markUserFences(text: string): string {
+  return text.replace(/`{3,}/g, (fence) => `${ALICE_USER_FENCE_MARK} ${fence}`);
+}
+
 /** §7.6 history line. Names are labels, not a second instruction channel. */
 export function formatAliceTranscript(lines: AliceTranscriptLine[]): string {
   return lines
-    .map((line) => `[${line.username.trim() || "user"}]: ${line.content}`)
+    .map((line) => {
+      const name = markUserFences(line.username.trim() || "user");
+      const body = markUserFences(line.content);
+      return `[${name}]: ${body}`;
+    })
     .join("\n");
 }
 
