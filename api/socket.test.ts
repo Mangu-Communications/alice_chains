@@ -234,11 +234,12 @@ describeIntegration("socket session re-validation (S-17)", () => {
     const token = cookie.split("=").slice(1).join("=");
     await revokeSession(decodeSessionToken(token)!.sid);
 
-    // `sessionExpired` carries no payload, so arrival is what is asserted:
-    // nextEvent rejects on timeout, and resolves with undefined on delivery.
+    // Arrival is what is asserted. P4-001 connectionStateRecovery appends a
+    // packet offset, so an empty event's first argument is that offset string
+    // rather than undefined. nextEvent rejects on timeout.
     const notified = nextEvent(socket, "sessionExpired");
     await expect(revalidateSockets(server.io)).resolves.toBe(1);
-    await expect(notified).resolves.toBeUndefined();
+    await expect(notified).resolves.toEqual(expect.any(String));
 
     await settle(200);
     expect(socket.connected).toBe(false);

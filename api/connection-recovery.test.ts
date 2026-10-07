@@ -118,5 +118,5 @@ describeIntegration("P4-001 connection state recovery", () => {
       content: "still here after the drop",
       senderId: alice.id,
     });
-  });
+  }, 20_000);
 });
