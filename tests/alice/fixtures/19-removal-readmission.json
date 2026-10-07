@@ -1,0 +1,17 @@
+{
+  "id": "19-removal-readmission",
+  "n": 19,
+  "category": "lifecycle",
+  "conversationName": "Ops",
+  "triggerUsername": "Morgan",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "@alice Are you still in this room?"
+    }
+  ],
+  "expect": {
+    "removalRemembers": true,
+    "reinviteOpensAdmission": true
+  }
+}

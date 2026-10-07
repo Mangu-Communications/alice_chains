@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:alice": "vitest run tests/alice/alice-eval.test.ts",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "validate": "npm run typecheck && npm test && npm run lint && npm run check:a11y && npm run build && npm run check:bundle",

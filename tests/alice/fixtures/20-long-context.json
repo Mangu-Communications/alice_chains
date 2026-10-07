@@ -1,0 +1,219 @@
+{
+  "id": "20-long-context",
+  "n": 20,
+  "category": "context",
+  "conversationName": "Ops",
+  "triggerUsername": "Alex",
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "Before Alice joined.",
+      "beforeJoin": true
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 0."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 1."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 2."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 3."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 4."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 5."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 6."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 7."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 8."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 9."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 10."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 11."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 12."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 13."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 14."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 15."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 16."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 17."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 18."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 19."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 20."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 21."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 22."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 23."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 24."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 25."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 26."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 27."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 28."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 29."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 30."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 31."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 32."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 33."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 34."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 35."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 36."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 37."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 38."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 39."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 40."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 41."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 42."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 43."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 44."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 45."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 46."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 47."
+    },
+    {
+      "username": "Riley",
+      "content": "Earlier note 48."
+    },
+    {
+      "username": "Alex",
+      "content": "@alice Summarise the notes you can see."
+    }
+  ],
+  "expect": {
+    "contextWindow": 50,
+    "droppedBeforeJoin": true,
+    "noSystemPromptLeak": true
+  }
+}

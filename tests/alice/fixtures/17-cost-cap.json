@@ -1,0 +1,22 @@
+{
+  "id": "17-cost-cap",
+  "n": 17,
+  "category": "cost-cap",
+  "conversationName": "Ops",
+  "triggerUsername": "Alex",
+  "messages": [
+    {
+      "username": "Alex",
+      "content": "@alice What is two plus two?"
+    }
+  ],
+  "expect": {
+    "capExceeded": true,
+    "status": 402,
+    "limitNote": true
+  },
+  "mock": {
+    "costUSD": 0.1,
+    "capUSD": 0.1
+  }
+}
