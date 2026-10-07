@@ -13,6 +13,7 @@ import { aliceDeclines, conversationParticipants, conversations, messages } from
 import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import { readAliceUserId } from "./alice-user";
+import { planAliceKillSwitch, readAliceEnabled } from "./alice-enabled";
 import { ALICE_ADMISSION_MARKER, buildAdmissionCard, readAliceContextMessages, readAliceProviderLabel } from "./alice-mention";
 import { adminDecisionName } from "./alice-admission";
 import { emitToMembers } from "./realtime";
@@ -194,6 +195,12 @@ export async function reinviteAlice(input: {
   actorRole: "user" | "admin";
   actorName: string | null;
 }): Promise<{ opened: boolean }> {
+  if (planAliceKillSwitch(readAliceEnabled()) === "skip") {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Alice is disabled on this instance (ALICE_ENABLED). Existing memberships stay.",
+    });
+  }
   const db = getDb();
   const { aliceUserId } = await loadGroup(db, input.conversationId, input.actorId, input.actorRole);
   const membership = await aliceMembership(db, input.conversationId, aliceUserId);

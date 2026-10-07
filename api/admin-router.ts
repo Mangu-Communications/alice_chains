@@ -31,6 +31,7 @@ import { getIO } from "./socket";
 import { log } from "./lib/logger";
 import { buildAliceCostDashboard, aliceCostWindow } from "./lib/alice-cost-dashboard";
 import { readAliceConvDailyCapUsd, readAliceDailyCapUsd, utcCostDate, utcCostDay } from "./lib/alice-cost";
+import { readAliceEnabled } from "./lib/alice-enabled";
 
 /** How long a member has to change their mind before the purge runs. */
 export const DELETION_GRACE_PERIOD_DAYS = 30;
@@ -195,6 +196,7 @@ export const adminRouter = createRouter({
     return {
       instanceCapUSD: readAliceDailyCapUsd(),
       convCapUSD: readAliceConvDailyCapUsd(),
+      aliceEnabled: readAliceEnabled(),
       dashboard: buildAliceCostDashboard({
         today,
         rows: rows.map((row) => ({

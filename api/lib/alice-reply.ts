@@ -4,6 +4,7 @@
  * A reached daily cap stores the §7.7 limit note and does not call Anthropic.
  * The human send already succeeded; the guest path stores the note instead of HTTP 402.
  * A1-010 writes alice_invoke after a stored reply and alice_error on refusal.
+ * A1-015 skips the provider when ALICE_ENABLED is off. No note is stored.
  */
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -14,6 +15,7 @@ import { insertMessage } from "../queries/messages";
 import type { AliceContextMessage } from "./alice-context";
 import { log } from "./logger";
 import { recordAliceError, recordAliceInvoke } from "./alice-audit";
+import { planAliceKillSwitch, readAliceEnabled } from "./alice-enabled";
 import {
   ALICE_LIMIT_NOTE,
   aliceCompletionCostUSD,
@@ -61,9 +63,22 @@ export async function deliverAliceReply(input: {
   aliceUserId: number;
   triggerContent: string;
   context: AliceContextMessage[];
-}): Promise<"replied" | "error" | "capped"> {
+}): Promise<"replied" | "error" | "capped" | "disabled"> {
   const started = Date.now();
   try {
+    if (planAliceKillSwitch(readAliceEnabled()) === "skip") {
+      log.warn("alice kill switch", {
+        event: "alice.disabled",
+        conversationId: input.conversationId,
+      });
+      await recordAliceError({
+        actorId: input.aliceUserId,
+        conversationId: input.conversationId,
+        reason: "disabled",
+        durationMs: Date.now() - started,
+      });
+      return "disabled";
+    }
     const db = getDb();
     const date = utcCostDate();
     const [conversationCost, instanceCost] = await Promise.all([

@@ -10,8 +10,11 @@ import { aliceDeclines, conversationParticipants, conversations, messages } from
 import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import { loadAliceContext, type AliceContextMessage } from "./alice-context";
+import { readAliceEnabled } from "./alice-enabled";
 import { deliverAliceReply } from "./alice-reply";
 import { readAliceUserId } from "./alice-user";
+
+export { readAliceEnabled };
 import { log } from "./logger";
 
 /** Token @alice, not a longer handle and not glued to an identifier. */
@@ -32,12 +35,6 @@ export type AliceMentionResult = {
 
 export function mentionsAlice(content: string): boolean {
   return ALICE_MENTION.test(content);
-}
-
-/** §7.3. Only an explicit disable turns the trigger off. Empty stays enabled. */
-export function readAliceEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  const raw = (env === process.env ? process.env.ALICE_ENABLED : env.ALICE_ENABLED)?.trim().toLowerCase() ?? "";
-  return raw !== "false" && raw !== "0" && raw !== "off" && raw !== "no";
 }
 
 /** Label on the admission card. Not a credential. */

@@ -7,10 +7,13 @@ export default function AliceCostPanel({
   dashboard,
   instanceCapUSD,
   convCapUSD,
+  aliceEnabled = true,
 }: {
   dashboard: AliceCostDashboardView;
   instanceCapUSD: number;
   convCapUSD: number;
+  /** A1-015. Read-only. The database flag is not available yet. */
+  aliceEnabled?: boolean;
 }) {
   const peak = aliceCostPeak(dashboard.daily);
   return (
@@ -18,6 +21,11 @@ export default function AliceCostPanel({
       <h2 id="alice-cost-heading" className="text-sm font-semibold">
         Alice spend
       </h2>
+      <p className="text-xs text-muted-foreground" data-testid="alice-enabled-status">
+        {aliceEnabled
+          ? "Alice invocations are on. Set ALICE_ENABLED=false to stop new mentions and model calls. Existing memberships stay. A database flag is not available yet."
+          : "Alice invocations are off (ALICE_ENABLED). Mentions are ignored and the model is not called. Existing memberships stay. A database flag is not available yet."}
+      </p>
       <p className="text-xs text-muted-foreground">
         UTC daily totals from alice_cost_daily. Today {formatAliceCost(dashboard.instanceTodayUSD)} of $
         {instanceCapUSD.toFixed(2)} instance cap. Per conversation cap ${convCapUSD.toFixed(2)}.

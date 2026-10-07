@@ -315,6 +315,7 @@ export default function Settings() {
                   dashboard={aliceCosts.data.dashboard}
                   instanceCapUSD={aliceCosts.data.instanceCapUSD}
                   convCapUSD={aliceCosts.data.convCapUSD}
+                  aliceEnabled={aliceCosts.data.aliceEnabled}
                 />
               )}
 
