@@ -16,7 +16,9 @@ import {
 import { emitToConversation, emitToMembers } from "./lib/realtime";
 import { attachToMessage, attachmentsForMessages } from "./attachment-router";
 import { notifyNewMessage } from "./lib/push/notify";
-import { messages, messageReactions, messageReads, users } from "@db/schema";
+import { messages, messageReactions, messageReads, aliceMessageRatings, users } from "@db/schema";
+import { readAliceUserId } from "./lib/alice-user";
+import { nextAliceRating, type AliceRating } from "./lib/alice-rating";
 import { MAX_MESSAGE_LENGTH, MAX_READ_RECEIPT_BATCH } from "@contracts/constants";
 import { REACTION_EMOJI } from "@contracts/reactions";
 import { MIN_SEARCH_QUERY_LENGTH } from "@contracts/constants";
@@ -89,6 +91,32 @@ export interface ReactionSummary {
  * One query for a whole page rather than one per message: the history endpoint
  * returns up to 100 messages and a per-message round trip would dominate it.
  */
+
+async function aliceRatingsFor(
+  messageIds: number[],
+  userId: number,
+  db: ReturnType<typeof getDb>,
+): Promise<Map<number, AliceRating>> {
+  const ratings = new Map<number, AliceRating>();
+  if (messageIds.length === 0) return ratings;
+  const rows = await db
+    .select({
+      messageId: aliceMessageRatings.messageId,
+      rating: aliceMessageRatings.rating,
+    })
+    .from(aliceMessageRatings)
+    .where(
+      and(
+        eq(aliceMessageRatings.userId, userId),
+        inArray(aliceMessageRatings.messageId, messageIds),
+      ),
+    );
+  for (const row of rows) {
+    if (row.rating === "up" || row.rating === "down") ratings.set(row.messageId, row.rating);
+  }
+  return ratings;
+}
+
 async function reactionsFor(
   messageIds: number[],
   viewerId: number,
@@ -219,9 +247,10 @@ export const messageRouter = createRouter({
         readsByMessage.set(r.messageId, arr);
       }
 
-      const [reactionsByMessage, attachmentsByMessage] = await Promise.all([
+      const [reactionsByMessage, attachmentsByMessage, aliceRatingByMessage] = await Promise.all([
         reactionsFor(messageIds, userId, db),
         attachmentsForMessages(messageIds, db),
+        aliceRatingsFor(messageIds, userId, db),
       ]);
 
       return msgs.reverse().map((m) => ({
@@ -230,6 +259,7 @@ export const messageRouter = createRouter({
         reactions: reactionsByMessage.get(m.id) ?? [],
         attachments: attachmentsByMessage.get(m.id) ?? [],
         isMine: m.senderId === userId,
+        aliceRating: aliceRatingByMessage.get(m.id) ?? null,
       }));
     }),
 
@@ -544,4 +574,69 @@ export const messageRouter = createRouter({
 
       return { success: true };
     }),
+
+  /**
+   * A1-014. Thumbs up/down on an Alice message. Same thumb again clears.
+   * Refuses any other sender, including when ALICE_USER_ID is unset.
+   */
+  rateAlice: authedQuery
+    .input(
+      z.object({
+        messageId: z.number().int().positive(),
+        rating: z.enum(["up", "down"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const [message] = await db
+        .select({
+          id: messages.id,
+          conversationId: messages.conversationId,
+          senderId: messages.senderId,
+          deletedAt: messages.deletedAt,
+        })
+        .from(messages)
+        .where(eq(messages.id, input.messageId))
+        .limit(1);
+      if (!message || message.deletedAt) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Message not found" });
+      }
+      await assertParticipant(ctx.user.id, message.conversationId, db);
+      const aliceUserId = readAliceUserId();
+      if (aliceUserId == null || message.senderId !== aliceUserId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only Alice messages can be rated",
+        });
+      }
+      const [existing] = await db
+        .select({ rating: aliceMessageRatings.rating })
+        .from(aliceMessageRatings)
+        .where(
+          and(
+            eq(aliceMessageRatings.messageId, message.id),
+            eq(aliceMessageRatings.userId, ctx.user.id),
+          ),
+        )
+        .limit(1);
+      const current = existing?.rating === "up" || existing?.rating === "down" ? existing.rating : null;
+      const next = nextAliceRating(current, input.rating);
+      if (next == null) {
+        await db
+          .delete(aliceMessageRatings)
+          .where(
+            and(
+              eq(aliceMessageRatings.messageId, message.id),
+              eq(aliceMessageRatings.userId, ctx.user.id),
+            ),
+          );
+      } else {
+        await db
+          .insert(aliceMessageRatings)
+          .values({ messageId: message.id, userId: ctx.user.id, rating: next })
+          .onDuplicateKeyUpdate({ set: { rating: next } });
+      }
+      return { messageId: message.id, rating: next };
+    }),
+
 });

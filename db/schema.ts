@@ -480,3 +480,20 @@ export const aliceDeclines = mysqlTable("alice_declines", {
 
 export type AliceDecline = typeof aliceDeclines.$inferSelect;
 export type InsertAliceDecline = typeof aliceDeclines.$inferInsert;
+
+// A1-014. One thumbs rating per member per Alice message. Same thumb again
+// deletes the row. No foreign keys, matching the other Alice tables.
+export const aliceMessageRatings = mysqlTable(
+  "alice_message_ratings",
+  {
+    id: serial("id").primaryKey(),
+    messageId: bigint("messageId", { mode: "number", unsigned: true }).notNull(),
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    rating: mysqlEnum("rating", ["up", "down"]).notNull(),
+    createdAt: timestamp("createdAt", { fsp: 3 }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("alice_message_ratings_msg_user_uq").on(t.messageId, t.userId)],
+);
+
+export type AliceMessageRating = typeof aliceMessageRatings.$inferSelect;
+export type InsertAliceMessageRating = typeof aliceMessageRatings.$inferInsert;

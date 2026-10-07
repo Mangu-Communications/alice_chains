@@ -16,6 +16,8 @@ import {
   Reply,
   SmilePlus,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,6 +79,8 @@ export type ThreadMessage = {
   readBy: unknown[] | null;
   attachments: ThreadAttachment[];
   reactions: ThreadReaction[];
+  /** A1-014. Caller's thumb on an Alice message. Null if unset or not Alice. */
+  aliceRating?: "up" | "down" | null;
 };
 
 export type ThreadPending = {
@@ -115,6 +119,9 @@ export type MessageThreadProps = {
   onAliceDecision?: (messageId: number, decision: "admit" | "decline") => void;
   /** A1-011. Server-supplied Alice id. Null means no badge and no sparkle. */
   aliceUserId?: number | null;
+  /** A1-014. Thumbs on Alice messages. Same thumb again clears. */
+  onAliceRate?: (messageId: number, rating: "up" | "down") => void;
+  aliceRatePending?: boolean;
 };
 
 export function MessageThread({
@@ -144,6 +151,8 @@ export function MessageThread({
   aliceDecisionPending = false,
   onAliceDecision,
   aliceUserId = null,
+  onAliceRate,
+  aliceRatePending = false,
 }: MessageThreadProps) {
   return (
     <ScrollArea className="flex-1 px-4">
@@ -446,6 +455,38 @@ export function MessageThread({
                         </a>
                       ),
                     )}
+                  {isAliceParticipant(msg.senderId, aliceUserId) && !msg.deletedAt && onAliceRate && (
+                    <div className="flex gap-1 mt-1.5">
+                      <button
+                        type="button"
+                        disabled={aliceRatePending}
+                        onClick={() => onAliceRate(msg.id, "up")}
+                        className={`flex items-center justify-center h-6 w-6 rounded-full border transition-colors ${
+                          msg.aliceRating === "up"
+                            ? "bg-primary/20 border-primary/40"
+                            : "bg-background/30 border-border/50 hover:bg-background/50"
+                        }`}
+                        aria-pressed={msg.aliceRating === "up"}
+                        aria-label={t("a11y.aliceThumbUp")}
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={aliceRatePending}
+                        onClick={() => onAliceRate(msg.id, "down")}
+                        className={`flex items-center justify-center h-6 w-6 rounded-full border transition-colors ${
+                          msg.aliceRating === "down"
+                            ? "bg-primary/20 border-primary/40"
+                            : "bg-background/30 border-border/50 hover:bg-background/50"
+                        }`}
+                        aria-pressed={msg.aliceRating === "down"}
+                        aria-label={t("a11y.aliceThumbDown")}
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                   {msg.reactions.length > 0 && !msg.deletedAt && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {msg.reactions.map((reaction) => (
