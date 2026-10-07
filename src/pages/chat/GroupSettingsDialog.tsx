@@ -6,7 +6,7 @@
  * used to render inline.
  */
 import { useRef } from "react";
-import { LogOut, X } from "lucide-react";
+import { LogOut, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +26,7 @@ import {
   renameSaveDisabled,
   showLeaveTransferHint,
 } from "./group-settings-display";
+import { ALICE_AI_BADGE, isAliceParticipant } from "./alice-display";
 
 export type GroupSettingsMember = {
   userId: number;
@@ -152,19 +153,35 @@ export function GroupSettingsDialog({
             <p className="text-sm font-medium">{memberCountLabel(members.length)}</p>
             <ScrollArea className="max-h-48">
               <ul className="space-y-1">
-                {members.map((p) => (
+                {members.map((p) => {
+                  const aliceMember = isAliceParticipant(p.userId, aliceUserId);
+                  return (
                   <li
                     key={p.userId}
                     className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-secondary/50"
                   >
-                    <Avatar className="w-7 h-7">
-                      <AvatarImage src={p.userAvatar || undefined} />
-                      <AvatarFallback className="text-[10px] bg-primary/20">
-                        {avatarInitial(p.userName)}
-                      </AvatarFallback>
-                    </Avatar>
+                    {aliceMember ? (
+                      <span
+                        className="w-7 h-7 flex-shrink-0 rounded-full bg-primary/15 text-primary flex items-center justify-center"
+                        aria-hidden="true"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </span>
+                    ) : (
+                      <Avatar className="w-7 h-7">
+                        <AvatarImage src={p.userAvatar || undefined} />
+                        <AvatarFallback className="text-[10px] bg-primary/20">
+                          {avatarInitial(p.userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <span className="flex-1 text-sm truncate">
                       {p.userName || "Unknown"}
+                      {aliceMember && (
+                        <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          {ALICE_AI_BADGE}
+                        </span>
+                      )}
                       {p.userId === ownerId && (
                         <span className="ml-1.5 text-[10px] text-muted-foreground">
                           owner
@@ -195,7 +212,8 @@ export function GroupSettingsDialog({
                       </>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </ScrollArea>
           </div>
