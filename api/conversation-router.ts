@@ -12,7 +12,9 @@ import {
   isParticipant,
 } from "./lib/authz";
 import { emitToMembers } from "./lib/realtime";
-import { applyAliceAdmission } from "./lib/alice-admission";
+import { applyAliceAdmission, conversationDeclinedAlice } from "./lib/alice-admission";
+import { rememberAliceRemoval, reinviteAlice, removeAlice } from "./lib/alice-participant";
+import { readAliceUserId } from "./lib/alice-user";
 import {
   CONVERSATION_LIST_LIMIT,
   MAX_CONVERSATION_PARTICIPANTS,
@@ -245,6 +247,8 @@ export const conversationRouter = createRouter({
       return {
         ...conv,
         notifyLevel: mine?.notifyLevel ?? "all",
+        aliceUserId: readAliceUserId(),
+        aliceDeclined: await conversationDeclinedAlice(input.id, db),
         displayName:
           conv.type === "direct"
             ? otherParticipant?.userName || "Unknown"
@@ -517,6 +521,16 @@ export const conversationRouter = createRouter({
           )
         );
 
+      const aliceUserId = readAliceUserId();
+      if (aliceUserId != null && input.userId === aliceUserId) {
+        await rememberAliceRemoval({
+          conversationId: input.conversationId,
+          actorId: ctx.user.id,
+          actorName: ctx.user.name,
+          aliceUserId,
+        });
+      }
+
       await announceConversationChange(input.conversationId, db);
       return { removed: input.userId };
     }),
@@ -620,6 +634,29 @@ export const conversationRouter = createRouter({
           )
         );
       return { level: input.level };
+    }),
+
+  // A1-005. Remove Alice, or re-invite after a decline. No model call.
+  removeAlice: authedQuery
+    .input(z.object({ conversationId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      return removeAlice({
+        conversationId: input.conversationId,
+        actorId: ctx.user.id,
+        actorRole: ctx.user.role,
+        actorName: ctx.user.name,
+      });
+    }),
+
+  reinviteAlice: authedQuery
+    .input(z.object({ conversationId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      return reinviteAlice({
+        conversationId: input.conversationId,
+        actorId: ctx.user.id,
+        actorRole: ctx.user.role,
+        actorName: ctx.user.name,
+      });
     }),
 
   // A1-004. Admit or decline the open admission card. No model call.

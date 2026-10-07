@@ -400,6 +400,27 @@ export default function Chat() {
       }
     },
   });
+  const refreshAliceRoom = async () => {
+    await utils.conversation.list.invalidate();
+    if (activeConversationId != null) {
+      await utils.message.listByConversation.invalidate({ conversationId: activeConversationId });
+      await utils.conversation.getById.invalidate({ id: activeConversationId });
+    }
+  };
+  const removeAlice = trpc.conversation.removeAlice.useMutation({
+    onSuccess: () => {
+      toast.success("Alice removed");
+      void refreshAliceRoom();
+    },
+    onError: onGroupError,
+  });
+  const reinviteAlice = trpc.conversation.reinviteAlice.useMutation({
+    onSuccess: () => {
+      toast.success("Alice can be admitted again");
+      void refreshAliceRoom();
+    },
+    onError: onGroupError,
+  });
   const deleteMessage = trpc.message.delete.useMutation({
     onSuccess: () => {
       setPendingDeleteId(null);
@@ -1225,6 +1246,18 @@ export default function Chat() {
               onLeave={() =>
                 activeConversationId &&
                 leaveGroup.mutate({ conversationId: activeConversationId })
+              }
+              canManageAlice={isGroupOwner || user?.isAdmin === true}
+              aliceUserId={activeConversation?.aliceUserId ?? null}
+              aliceDeclined={activeConversation?.aliceDeclined ?? false}
+              aliceActionPending={removeAlice.isPending || reinviteAlice.isPending}
+              onRemoveAlice={() =>
+                activeConversationId &&
+                removeAlice.mutate({ conversationId: activeConversationId })
+              }
+              onReinviteAlice={() =>
+                activeConversationId &&
+                reinviteAlice.mutate({ conversationId: activeConversationId })
               }
             />
 

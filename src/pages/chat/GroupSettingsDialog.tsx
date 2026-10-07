@@ -21,6 +21,7 @@ import {
 import { t } from "@/i18n";
 import { avatarInitial } from "@/lib/chat-display";
 import {
+  aliceSettingsAction,
   memberCountLabel,
   renameSaveDisabled,
   showLeaveTransferHint,
@@ -59,6 +60,12 @@ export type GroupSettingsDialogProps = {
   onRemove: (userId: number) => void;
   onTransfer: (userId: number) => void;
   onLeave: () => void;
+  canManageAlice: boolean;
+  aliceUserId: number | null;
+  aliceDeclined: boolean;
+  aliceActionPending: boolean;
+  onRemoveAlice: () => void;
+  onReinviteAlice: () => void;
 };
 
 export function GroupSettingsDialog({
@@ -83,8 +90,19 @@ export function GroupSettingsDialog({
   onRemove,
   onTransfer,
   onLeave,
+  canManageAlice,
+  aliceUserId,
+  aliceDeclined,
+  aliceActionPending,
+  onRemoveAlice,
+  onReinviteAlice,
 }: GroupSettingsDialogProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const aliceAction = aliceSettingsAction({
+    canManage: canManageAlice,
+    aliceInGroup: aliceUserId != null && members.some((member) => member.userId === aliceUserId),
+    aliceDeclined,
+  });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -153,7 +171,7 @@ export function GroupSettingsDialog({
                         </span>
                       )}
                     </span>
-                    {isOwner && p.userId !== selfId && (
+                    {isOwner && p.userId !== selfId && p.userId !== aliceUserId && (
                       <>
                         <Button
                           variant="ghost"
@@ -214,6 +232,34 @@ export function GroupSettingsDialog({
                   </ul>
                 </ScrollArea>
               )}
+            </div>
+          )}
+
+          {aliceAction !== "none" && (
+            <div className="space-y-2 pt-2 border-t border-border">
+              <p className="text-sm font-medium">Alice</p>
+              {aliceAction === "remove" ? (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => conversationId && onRemoveAlice()}
+                  disabled={aliceActionPending}
+                >
+                  {aliceActionPending ? "Removing Alice…" : "Remove Alice"}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => conversationId && onReinviteAlice()}
+                  disabled={aliceActionPending}
+                >
+                  {aliceActionPending ? "Re-inviting Alice…" : "Re-invite Alice"}
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Removing Alice keeps this conversation AI-free until an admin re-invites her.
+              </p>
             </div>
           )}
 
