@@ -111,3 +111,51 @@ export async function recordAliceDailyCost(
   const id = Number(inserted[0].insertId);
   return { id, date, scope: input.scope, scopeId, ...next };
 }
+
+/** MASTER §7.7. Same note for the conversation cap and the instance cap. */
+export const ALICE_LIMIT_NOTE =
+  "I've reached my response limit for this conversation today. An admin can reset it.";
+
+/** MASTER §2.1 input price. Output is 5x that rate; not an operator secret. */
+export const ALICE_INPUT_USD_PER_MILLION = 0.25;
+export const ALICE_OUTPUT_USD_PER_MILLION = 1.25;
+
+const DEFAULT_DAILY_CAP_USD = 1;
+const DEFAULT_CONV_DAILY_CAP_USD = 0.1;
+
+function readNonNegativeCap(raw: string | undefined, fallback: number): number {
+  if (raw == null || raw.trim() === "") return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return fallback;
+  return value;
+}
+
+/** Instance-wide daily cap. Empty or invalid env keeps the §7.7 default. */
+export function readAliceDailyCapUsd(env: Record<string, string | undefined> = process.env): number {
+  const raw = env === process.env ? process.env.ALICE_DAILY_CAP_USD : env.ALICE_DAILY_CAP_USD;
+  return readNonNegativeCap(raw, DEFAULT_DAILY_CAP_USD);
+}
+
+/** Per-conversation daily cap. Empty or invalid env keeps the §7.7 default. */
+export function readAliceConvDailyCapUsd(env: Record<string, string | undefined> = process.env): number {
+  const raw = env === process.env ? process.env.ALICE_CONV_DAILY_CAP_USD : env.ALICE_CONV_DAILY_CAP_USD;
+  return readNonNegativeCap(raw, DEFAULT_CONV_DAILY_CAP_USD);
+}
+
+/** True when today's stored total has reached the cap. Missing row is zero. */
+export function aliceCostReachesCap(costUSD: string | number | null | undefined, capUSD: number): boolean {
+  if (!Number.isFinite(capUSD) || capUSD < 0) return false;
+  if (costUSD == null || costUSD === "") return 0 >= capUSD;
+  const spent = Number(costUSD);
+  if (!Number.isFinite(spent) || spent < 0) return false;
+  return spent >= capUSD;
+}
+
+/** Provider token counts to USD. Null usage counts as zero so a bad payload cannot invent spend. */
+export function aliceCompletionCostUSD(inputTokens: number | null, outputTokens: number | null): number {
+  const input = Number.isInteger(inputTokens) && (inputTokens ?? 0) > 0 ? inputTokens! : 0;
+  const output = Number.isInteger(outputTokens) && (outputTokens ?? 0) > 0 ? outputTokens! : 0;
+  const cost =
+    (input * ALICE_INPUT_USD_PER_MILLION + output * ALICE_OUTPUT_USD_PER_MILLION) / 1_000_000;
+  return Number(cost.toFixed(6));
+}

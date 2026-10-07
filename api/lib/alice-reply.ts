@@ -1,6 +1,8 @@
 /**
- * A1-007. Store Alice's reply as a normal text message and broadcast it.
- * Missing key and provider failures become the §7.6 system note. No cost cap.
+ * A1-007 / A1-009. Store Alice's reply as a normal text message and broadcast it.
+ * Missing key and provider failures become the §7.6 system note.
+ * A reached daily cap stores the §7.7 limit note and does not call Anthropic.
+ * The human send already succeeded; the guest path stores the note instead of HTTP 402.
  */
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -10,6 +12,16 @@ import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import type { AliceContextMessage } from "./alice-context";
 import { log } from "./logger";
+import {
+  ALICE_LIMIT_NOTE,
+  aliceCompletionCostUSD,
+  aliceCostReachesCap,
+  readAliceConvDailyCapUsd,
+  readAliceDailyCapUsd,
+  readAliceDailyCost,
+  recordAliceDailyCost,
+  utcCostDate,
+} from "./alice-cost";
 import {
   ALICE_ERROR_NOTE,
   aliceFirstResponseFooter,
@@ -47,9 +59,25 @@ export async function deliverAliceReply(input: {
   aliceUserId: number;
   triggerContent: string;
   context: AliceContextMessage[];
-}): Promise<"replied" | "error"> {
+}): Promise<"replied" | "error" | "capped"> {
   try {
     const db = getDb();
+    const date = utcCostDate();
+    const [conversationCost, instanceCost] = await Promise.all([
+      readAliceDailyCost(db, { scope: "conversation", scopeId: input.conversationId, date }),
+      readAliceDailyCost(db, { scope: "instance", date }),
+    ]);
+    const conversationCapped = aliceCostReachesCap(conversationCost?.costUSD, readAliceConvDailyCapUsd());
+    const instanceCapped = aliceCostReachesCap(instanceCost?.costUSD, readAliceDailyCapUsd());
+    if (conversationCapped || instanceCapped) {
+      log.warn("alice cost cap reached", {
+        event: "alice.cost.cap",
+        conversationId: input.conversationId,
+        scope: instanceCapped ? "instance" : "conversation",
+      });
+      await storeAliceNote(input.conversationId, input.aliceUserId, ALICE_LIMIT_NOTE, "system");
+      return "capped";
+    }
     const senderIds = [...new Set(input.context.map((row) => row.senderId))];
     const nameRows = senderIds.length
       ? await db
@@ -107,6 +135,30 @@ export async function deliverAliceReply(input: {
       },
       (url, init) => fetch(url, init),
     );
+    const costUSD = aliceCompletionCostUSD(completion.inputTokens, completion.outputTokens);
+    try {
+      await recordAliceDailyCost(db, {
+        scope: "conversation",
+        scopeId: input.conversationId,
+        date,
+        inputTokens: completion.inputTokens ?? 0,
+        outputTokens: completion.outputTokens ?? 0,
+        costUSD,
+      });
+      await recordAliceDailyCost(db, {
+        scope: "instance",
+        date,
+        inputTokens: completion.inputTokens ?? 0,
+        outputTokens: completion.outputTokens ?? 0,
+        costUSD,
+      });
+    } catch (costError) {
+      log.warn("alice cost record failed", {
+        event: "alice.cost.record_failed",
+        conversationId: input.conversationId,
+        error: costError instanceof Error ? costError.name : "error",
+      });
+    }
     const footer = priorText
       ? null
       : aliceFirstResponseFooter(completion.model, input.context.length);
