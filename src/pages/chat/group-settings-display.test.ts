@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  aliceSettingsAction,
   memberCountLabel,
   renameSaveDisabled,
   showLeaveTransferHint,
@@ -33,5 +34,14 @@ describe("memberCountLabel", () => {
   it("keeps the parenthetical count the dialog used", () => {
     expect(memberCountLabel(0)).toBe("Members (0)");
     expect(memberCountLabel(4)).toBe("Members (4)");
+  });
+});
+
+describe("aliceSettingsAction", () => {
+  it("offers remove while Alice is a member and re-invite only after a decline", () => {
+    expect(aliceSettingsAction({ canManage: true, aliceInGroup: true, aliceDeclined: false })).toBe("remove");
+    expect(aliceSettingsAction({ canManage: true, aliceInGroup: false, aliceDeclined: true })).toBe("reinvite");
+    expect(aliceSettingsAction({ canManage: true, aliceInGroup: false, aliceDeclined: false })).toBe("none");
+    expect(aliceSettingsAction({ canManage: false, aliceInGroup: true, aliceDeclined: true })).toBe("none");
   });
 });
