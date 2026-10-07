@@ -172,11 +172,12 @@ export function selectOriginalAliceMention(
 /**
  * §7.4 step 2. After Admit, generate a reply to the original mention.
  * Missing ALICE_API_KEY stays the existing error note inside deliverAliceReply.
+ * A reached cap returns capped and does not call the provider.
  */
 export async function replyAfterAliceAdmit(
   input: { conversationId: number; cardId: number; aliceUserId: number },
   db: AdmissionDb = getDb(),
-): Promise<"replied" | "error" | "no_trigger"> {
+): Promise<"replied" | "error" | "capped" | "no_trigger"> {
   const rows = await db
     .select({
       id: messages.id,
