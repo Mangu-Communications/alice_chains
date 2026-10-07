@@ -1,14 +1,15 @@
 /**
  * A1-003. @alice mention detection and admission start (MASTER §7.3–§7.4).
  *
- * This slice does not call a model, enforce cost caps, or admit Alice.
- * A participant mention only records that a reply is deferred to §7.6.
+ * This slice does not call a model or enforce cost caps.
+ * An admitted participant mention assembles §7.6 context and defers the reply.
  */
 
 import { and, eq, like } from "drizzle-orm";
 import { aliceDeclines, conversationParticipants, conversations, messages } from "@db/schema";
 import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
+import { loadAliceContext, type AliceContextMessage } from "./alice-context";
 import { readAliceUserId } from "./alice-user";
 import { log } from "./logger";
 
@@ -21,6 +22,12 @@ export const ALICE_DECLINED_NOTE =
 export const ALICE_ADMISSION_MARKER = "Alice is an AI.";
 
 export type AliceTriggerAction = "ignore" | "start_admission" | "reply_deferred" | "declined_note";
+
+export type AliceMentionResult = {
+  action: AliceTriggerAction;
+  /** §7.6 step 1 window. Present only when a reply is deferred. No provider call. */
+  context: AliceContextMessage[] | null;
+};
 
 export function mentionsAlice(content: string): boolean {
   return ALICE_MENTION.test(content);
@@ -116,7 +123,7 @@ async function loadMentionContext(db: MentionDb, conversationId: number, aliceUs
     .where(eq(conversations.id, conversationId))
     .limit(1);
   const [membership] = await db
-    .select({ id: conversationParticipants.id })
+    .select({ id: conversationParticipants.id, joinedAt: conversationParticipants.joinedAt })
     .from(conversationParticipants)
     .where(
       and(
@@ -145,6 +152,7 @@ async function loadMentionContext(db: MentionDb, conversationId: number, aliceUs
   return {
     conversationType: conversation?.type ?? "direct",
     aliceIsParticipant: membership != null,
+    joinedAt: membership?.joinedAt ?? null,
     hasOpenAdmission: openCard != null,
     declined: decline != null,
   };
@@ -157,10 +165,12 @@ async function loadMentionContext(db: MentionDb, conversationId: number, aliceUs
 export async function handleAliceMentionAfterSend(input: {
   conversationId: number;
   content: string;
-}): Promise<AliceTriggerAction> {
+}): Promise<AliceMentionResult> {
   const enabled = readAliceEnabled();
   const aliceUserId = readAliceUserId();
-  if (!mentionsAlice(input.content) || !enabled || aliceUserId == null) return "ignore";
+  if (!mentionsAlice(input.content) || !enabled || aliceUserId == null) {
+    return { action: "ignore", context: null };
+  }
   try {
     const db = getDb();
     const ctx = await loadMentionContext(db, input.conversationId, aliceUserId);
@@ -193,9 +203,15 @@ export async function handleAliceMentionAfterSend(input: {
         },
       },
     );
-    return action;
+    if (action !== "reply_deferred" || ctx.joinedAt == null) return { action, context: null };
+    const context = await loadAliceContext(db, {
+      conversationId: input.conversationId,
+      joinedAt: ctx.joinedAt,
+      limit: readAliceContextMessages(),
+    });
+    return { action, context };
   } catch (error) {
     log.warn("alice mention failed", { event: "alice.mention", conversationId: input.conversationId, error: String(error) });
-    return "ignore";
+    return { action: "ignore", context: null };
   }
 }
