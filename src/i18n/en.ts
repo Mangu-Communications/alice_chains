@@ -33,6 +33,8 @@ export const en = {
   "a11y.uploading": "Uploading",
   "a11y.messageActions": "Message actions",
   "a11y.addReaction": "Add a reaction",
+  "a11y.aliceThumbUp": "Mark this Alice reply as helpful",
+  "a11y.aliceThumbDown": "Mark this Alice reply as not helpful",
   "a11y.replyToMessage": "Reply to this message",
   "a11y.cancelReply": "Cancel reply",
   "a11y.editMessage": "Edit message",

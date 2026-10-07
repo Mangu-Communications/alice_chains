@@ -391,6 +391,11 @@ export default function Chat() {
     onError: (error) => toast.error(error.message),
   });
 
+  const rateAlice = trpc.message.rateAlice.useMutation({
+    onSuccess: () => refetchMessages(),
+    onError: (error) => toast.error(error.message),
+  });
+
   const aliceDecision = trpc.conversation.aliceDecision.useMutation({
     onSuccess: async () => {
       await utils.conversation.list.invalidate();
@@ -1176,6 +1181,8 @@ export default function Chat() {
                 })
               }
               onReact={(messageId, emoji) => react.mutate({ messageId, emoji })}
+              onAliceRate={(messageId, rating) => rateAlice.mutate({ messageId, rating })}
+              aliceRatePending={rateAlice.isPending}
               onStartEdit={startEditing}
               onDelete={(messageId) => {
                 setPendingDeleteId(messageId);
