@@ -125,6 +125,10 @@ export function useSocket() {
   // P-UX-2. The socket's state was invisible to the app, so a send into a dead
   // connection looked identical to a successful one.
   const [connection, setConnection] = useState<ConnectionState>("connecting");
+  // P4-001. Increments on every connect so the open conversation can rejoin.
+  // `recovered` is Socket.IO's flag that rooms and missed packets were restored.
+  const [connectionEpoch, setConnectionEpoch] = useState(0);
+  const [recovered, setRecovered] = useState(false);
 
   useEffect(() => {
     const socket = io({
@@ -135,7 +139,11 @@ export function useSocket() {
 
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnection("connected"));
+    socket.on("connect", () => {
+      setConnection("connected");
+      setRecovered(socket.recovered === true);
+      setConnectionEpoch((n) => n + 1);
+    });
     socket.on("disconnect", () => setConnection("disconnected"));
     // Socket.IO retries on its own; this is what distinguishes "trying" from
     // "given up" for the banner.
@@ -419,6 +427,8 @@ export function useSocket() {
   return {
     socket: socketRef.current,
     connection,
+    connectionEpoch,
+    recovered,
     isConnected: connection === "connected",
     join,
     joinConversation,
