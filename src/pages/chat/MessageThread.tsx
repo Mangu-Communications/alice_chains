@@ -15,6 +15,7 @@ import {
   Pencil,
   Reply,
   SmilePlus,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   replyPreviewText,
   showSenderAvatar,
 } from "./message-display";
+import { ALICE_AI_BADGE, isAliceParticipant } from "./alice-display";
 
 export type ThreadAttachment = {
   id: number;
@@ -111,6 +113,8 @@ export type MessageThreadProps = {
   canDecideAlice?: boolean;
   aliceDecisionPending?: boolean;
   onAliceDecision?: (messageId: number, decision: "admit" | "decline") => void;
+  /** A1-011. Server-supplied Alice id. Null means no badge and no sparkle. */
+  aliceUserId?: number | null;
 };
 
 export function MessageThread({
@@ -139,6 +143,7 @@ export function MessageThread({
   canDecideAlice = false,
   aliceDecisionPending = false,
   onAliceDecision,
+  aliceUserId = null,
 }: MessageThreadProps) {
   return (
     <ScrollArea className="flex-1 px-4">
@@ -195,12 +200,21 @@ export function MessageThread({
                 }`}
               >
                 {showAvatar ? (
-                  <Avatar className="w-7 h-7 flex-shrink-0">
-                    <AvatarImage src={msg.senderAvatar || undefined} />
-                    <AvatarFallback className="text-[10px] bg-primary/20">
-                      {avatarInitial(msg.senderName, "")}
-                    </AvatarFallback>
-                  </Avatar>
+                  isAliceParticipant(msg.senderId, aliceUserId) ? (
+                    <span
+                      className="w-7 h-7 flex-shrink-0 rounded-full bg-primary/15 text-primary flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </span>
+                  ) : (
+                    <Avatar className="w-7 h-7 flex-shrink-0">
+                      <AvatarImage src={msg.senderAvatar || undefined} />
+                      <AvatarFallback className="text-[10px] bg-primary/20">
+                        {avatarInitial(msg.senderName, "")}
+                      </AvatarFallback>
+                    </Avatar>
+                  )
                 ) : (
                   !msg.isMine && <div className="w-7 flex-shrink-0" />
                 )}
@@ -212,6 +226,12 @@ export function MessageThread({
                   {!msg.isMine && showAvatar && (
                     <p className="text-[11px] font-medium text-primary/70 mb-1">
                       {msg.senderName}
+                    </p>
+                  )}
+                  {isAliceParticipant(msg.senderId, aliceUserId) && !msg.deletedAt && (
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-primary mb-1">
+                      <span className="sr-only">Alice is </span>
+                      {ALICE_AI_BADGE}
                     </p>
                   )}
                   {msg.replyToId && !msg.deletedAt && (

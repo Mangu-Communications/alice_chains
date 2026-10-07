@@ -1198,6 +1198,7 @@ export default function Chat() {
                   decision,
                 });
               }}
+              aliceUserId={activeConversation?.aliceUserId ?? null}
             />
 
             {/* F-7 · Group settings */}
