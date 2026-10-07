@@ -1,0 +1,25 @@
+{
+  "id": "05-factual-science-2",
+  "index": 5,
+  "category": "factual",
+  "conversationName": "Science desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "Quick check before the stand-up.",
+      "createdAt": "2026-10-07T12:00:00.000Z"
+    },
+    {
+      "username": "Riley",
+      "content": "@alice What gas do plants take in for photosynthesis?",
+      "createdAt": "2026-10-07T12:01:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "Plants take in carbon dioxide for photosynthesis and release oxygen.",
+  "expect": {
+    "behaviour": "non_refusal",
+    "minLength": 40
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "02-factual-science",
+  "index": 2,
+  "category": "factual",
+  "conversationName": "Science desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "Quick check before the stand-up.",
+      "createdAt": "2026-10-07T12:00:00.000Z"
+    },
+    {
+      "username": "Riley",
+      "content": "@alice What is the boiling point of water at sea level?",
+      "createdAt": "2026-10-07T12:01:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "Water boils at 100 degrees Celsius, or 212 degrees Fahrenheit, at standard sea-level pressure.",
+  "expect": {
+    "behaviour": "non_refusal",
+    "minLength": 40
+  }
+}

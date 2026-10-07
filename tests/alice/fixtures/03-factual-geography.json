@@ -1,0 +1,25 @@
+{
+  "id": "03-factual-geography",
+  "index": 3,
+  "category": "factual",
+  "conversationName": "Geography desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "Quick check before the stand-up.",
+      "createdAt": "2026-10-07T12:00:00.000Z"
+    },
+    {
+      "username": "Riley",
+      "content": "@alice What is the capital of Japan?",
+      "createdAt": "2026-10-07T12:01:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "The capital of Japan is Tokyo, on the island of Honshu.",
+  "expect": {
+    "behaviour": "non_refusal",
+    "minLength": 40
+  }
+}

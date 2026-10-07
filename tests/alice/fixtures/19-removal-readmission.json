@@ -1,0 +1,23 @@
+{
+  "id": "19-removal-readmission",
+  "index": 19,
+  "category": "lifecycle",
+  "conversationName": "Ops",
+  "triggerUsername": "Morgan",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "@alice please join this room",
+      "createdAt": "2026-10-07T12:07:00.000Z",
+      "trigger": true
+    },
+    {
+      "username": "system",
+      "content": "Alice has been admitted by Morgan.",
+      "createdAt": "2026-10-07T12:08:00.000Z"
+    }
+  ],
+  "expect": {
+    "behaviour": "removal_readmission"
+  }
+}

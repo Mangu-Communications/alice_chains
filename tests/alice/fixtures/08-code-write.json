@@ -1,0 +1,21 @@
+{
+  "id": "08-code-write",
+  "index": 8,
+  "category": "code",
+  "conversationName": "Code desk",
+  "triggerUsername": "Riley",
+  "kind": "write",
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "@alice write a function that sums numbers",
+      "createdAt": "2026-10-07T12:02:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "Here is a small sum.\n\n```ts\nexport function sum(values: number[]): number {\n  return values.reduce((total, value) => total + value, 0);\n}\n```",
+  "expect": {
+    "behaviour": "code_block",
+    "minLength": 20
+  }
+}

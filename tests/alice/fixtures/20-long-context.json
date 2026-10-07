@@ -1,0 +1,338 @@
+{
+  "id": "20-long-context",
+  "index": 20,
+  "category": "long_context",
+  "conversationName": "Long desk",
+  "triggerUsername": "Riley",
+  "joinedAt": "2026-10-07T00:00:00.000Z",
+  "limit": 50,
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "pre-join note 1",
+      "createdAt": "2026-10-06T12:00:00.000Z",
+      "id": 1,
+      "preJoin": true
+    },
+    {
+      "username": "Morgan",
+      "content": "pre-join note 2",
+      "createdAt": "2026-10-06T12:00:00.000Z",
+      "id": 2,
+      "preJoin": true
+    },
+    {
+      "username": "Morgan",
+      "content": "pre-join note 3",
+      "createdAt": "2026-10-06T12:00:00.000Z",
+      "id": 3,
+      "preJoin": true
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 4",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 4
+    },
+    {
+      "username": "Riley",
+      "content": "context line 5",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 5
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 6",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 6
+    },
+    {
+      "username": "Riley",
+      "content": "context line 7",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 7
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 8",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 8
+    },
+    {
+      "username": "Riley",
+      "content": "context line 9",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 9
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 10",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 10
+    },
+    {
+      "username": "Riley",
+      "content": "context line 11",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 11
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 12",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 12
+    },
+    {
+      "username": "Riley",
+      "content": "context line 13",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 13
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 14",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 14
+    },
+    {
+      "username": "Riley",
+      "content": "context line 15",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 15
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 16",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 16
+    },
+    {
+      "username": "Riley",
+      "content": "context line 17",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 17
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 18",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 18
+    },
+    {
+      "username": "Riley",
+      "content": "context line 19",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 19
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 20",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 20
+    },
+    {
+      "username": "Riley",
+      "content": "context line 21",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 21
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 22",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 22
+    },
+    {
+      "username": "Riley",
+      "content": "context line 23",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 23
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 24",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 24
+    },
+    {
+      "username": "Riley",
+      "content": "context line 25",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 25
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 26",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 26
+    },
+    {
+      "username": "Riley",
+      "content": "context line 27",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 27
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 28",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 28
+    },
+    {
+      "username": "Riley",
+      "content": "context line 29",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 29
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 30",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 30
+    },
+    {
+      "username": "Riley",
+      "content": "context line 31",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 31
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 32",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 32
+    },
+    {
+      "username": "Riley",
+      "content": "context line 33",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 33
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 34",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 34
+    },
+    {
+      "username": "Riley",
+      "content": "context line 35",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 35
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 36",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 36
+    },
+    {
+      "username": "Riley",
+      "content": "context line 37",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 37
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 38",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 38
+    },
+    {
+      "username": "Riley",
+      "content": "context line 39",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 39
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 40",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 40
+    },
+    {
+      "username": "Riley",
+      "content": "context line 41",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 41
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 42",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 42
+    },
+    {
+      "username": "Riley",
+      "content": "context line 43",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 43
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 44",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 44
+    },
+    {
+      "username": "Riley",
+      "content": "context line 45",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 45
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 46",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 46
+    },
+    {
+      "username": "Riley",
+      "content": "context line 47",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 47
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 48",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 48
+    },
+    {
+      "username": "Riley",
+      "content": "context line 49",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 49
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 50",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 50
+    },
+    {
+      "username": "Riley",
+      "content": "context line 51",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 51
+    },
+    {
+      "username": "Morgan",
+      "content": "context line 52",
+      "createdAt": "2026-10-07T12:10:00.000Z",
+      "id": 52
+    },
+    {
+      "username": "Riley",
+      "content": "@alice summarise the recent notes",
+      "createdAt": "2026-10-07T12:11:00.000Z",
+      "id": 53,
+      "trigger": true
+    }
+  ],
+  "expect": {
+    "behaviour": "context_window",
+    "maxMessages": 50,
+    "excludePreJoin": true
+  }
+}
