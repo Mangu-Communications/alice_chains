@@ -99,6 +99,13 @@
       "when": 1787696000000,
       "tag": "0013_alice_system_user",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1787696400000,
+      "tag": "0014_alice_admission_message",
+      "breakpoints": true
     }
   ]
 }

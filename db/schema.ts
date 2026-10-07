@@ -143,7 +143,7 @@ export const messages = mysqlTable(
     conversationId: bigint("conversationId", { mode: "number", unsigned: true }).notNull(),
     senderId: bigint("senderId", { mode: "number", unsigned: true }).notNull(),
     content: text("content").notNull(),
-    type: mysqlEnum("type", ["text", "image", "file"]).default("text").notNull(),
+    type: mysqlEnum("type", ["text", "image", "file", "system"]).default("text").notNull(),
     fileUrl: text("fileUrl"),
     replyToId: bigint("replyToId", { mode: "number", unsigned: true }),
     isEdited: boolean("isEdited").default(false).notNull(),
