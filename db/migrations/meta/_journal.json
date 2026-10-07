@@ -92,6 +92,13 @@
       "when": 1787695600000,
       "tag": "0012_alice_cost_daily",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1787696000000,
+      "tag": "0013_alice_system_user",
+      "breakpoints": true
     }
   ]
 }
