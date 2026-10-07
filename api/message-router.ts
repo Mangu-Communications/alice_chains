@@ -5,6 +5,7 @@ import { createRouter, authedQuery, rateLimited } from "./middleware";
 import { Limits } from "./lib/rate-limit";
 import { getDb } from "./queries/connection";
 import { insertMessage } from "./queries/messages";
+import { handleAliceMentionAfterSend } from "./lib/alice-mention";
 import { TRPCError } from "@trpc/server";
 import {
   assertMessagesReadable,
@@ -288,6 +289,12 @@ export const messageRouter = createRouter({
         isGroup: false,
         content: input.content,
         hasAttachment: attachmentIds.length > 0,
+      });
+
+      // A1-003. Mention detection and admission card only. No model call.
+      void handleAliceMentionAfterSend({
+        conversationId: input.conversationId,
+        content: input.content,
       });
 
       return { ...stored, isMine: true };

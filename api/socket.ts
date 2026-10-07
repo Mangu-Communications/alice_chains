@@ -10,6 +10,7 @@ import { authenticateRequest } from "./kimi/auth";
 import { getSessionToken, verifySessionToken } from "./kimi/session";
 import { allowedOrigins } from "./lib/env";
 import { log } from "./lib/logger";
+import { handleAliceMentionAfterSend } from "./lib/alice-mention";
 import { increment } from "./lib/metrics";
 import {
   blockedWith,
@@ -344,6 +345,12 @@ export function initSocket(server: HttpServer) {
               isGroup: conversationMeta?.isGroup ?? false,
               content: data.content,
               hasAttachment: false,
+            });
+
+            // A1-003. Mention detection and admission card only. No model call.
+            void handleAliceMentionAfterSend({
+              conversationId: data.conversationId,
+              content: data.content,
             });
           }
         }

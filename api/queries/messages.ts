@@ -17,7 +17,7 @@ export interface NewMessage {
   conversationId: number;
   senderId: number;
   content: string;
-  type?: "text" | "image" | "file";
+  type?: "text" | "image" | "file" | "system";
   /** Deprecated by F-4's `attachments` table; kept until it is dropped. */
   fileUrl?: string | null;
   replyToId?: number | null;
