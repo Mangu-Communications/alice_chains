@@ -28,6 +28,10 @@ import {
   nextOlderCursor,
 } from "@/pages/chat/message-pagination";
 import { incomingMessageAnnouncement } from "@/pages/chat/message-announce";
+import {
+  shouldRefetchOpenThread,
+  shouldRejoinOpenConversation,
+} from "@/lib/connection-recovery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -458,16 +462,26 @@ export default function Chat() {
     editMessage.mutate({ messageId: editingMessageId, content });
   };
 
-  // Join socket room for active conversation
+  // Join socket room for active conversation. P4-001 rejoins after every
+  // connect so a dropped socket does not leave the open thread silent.
+  // A connect that Socket.IO could not recover also refetches the thread.
   useEffect(() => {
-    if (activeConversationId && user) {
+    if (shouldRejoinOpenConversation(activeConversationId) && user && activeConversationId) {
       socket.joinConversation(activeConversationId);
       socket.join(user.id);
+      if (
+        shouldRefetchOpenThread({
+          connectionEpoch: socket.connectionEpoch,
+          recovered: socket.recovered,
+        })
+      ) {
+        refetchMessages();
+      }
       return () => {
         socket.leaveConversation(activeConversationId);
       };
     }
-  }, [activeConversationId, user, socket]);
+  }, [activeConversationId, user, socket, socket.connectionEpoch, socket.recovered, refetchMessages]);
 
   // Listen for new messages
   useEffect(() => {

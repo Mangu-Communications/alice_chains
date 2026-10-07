@@ -103,7 +103,9 @@ export async function revalidateSockets(server: SocketIOServer): Promise<number>
 
     // Tell the client why before cutting it off, so it can show "signed out"
     // rather than a bare reconnect loop.
-    socket.emit("sessionExpired");
+    // Empty object, not a bare emit: with connection state recovery a
+    // payload-less packet delivers the offset string as the first argument.
+    socket.emit("sessionExpired", {});
     socket.disconnect(true);
     dropped += 1;
   }
@@ -128,6 +130,9 @@ function announcePresence(
   }
 }
 
+/** P4-001. Dropped sockets can resume rooms and missed packets for this long. */
+export const CONNECTION_RECOVERY_MS = 2 * 60 * 1000;
+
 export function initSocket(server: HttpServer) {
   io = new SocketIOServer(server, {
     // S-15 / SEC-C-18. Was hard-coded to localhost in development and `false`
@@ -144,6 +149,13 @@ export function initSocket(server: HttpServer) {
     // Drop a connection that stops answering rather than holding it open.
     pingTimeout: 20_000,
     pingInterval: 25_000,
+    // P4-001. A dropped socket can resume the same id, rooms, and missed
+    // packets. Auth still runs (skipMiddlewares false) so a revoked session
+    // cannot resume. Longer than pingTimeout so a silent drop can still recover.
+    connectionStateRecovery: {
+      maxDisconnectionDuration: CONNECTION_RECOVERY_MS,
+      skipMiddlewares: false,
+    },
   });
 
   io.use(async (socket, next) => {
