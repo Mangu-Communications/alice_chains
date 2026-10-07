@@ -3,7 +3,7 @@
  */
 import { recordAudit } from "./audit";
 
-export type AliceAuditReason = "missing_key" | "provider_error" | "cost_cap";
+export type AliceAuditReason = "missing_key" | "provider_error" | "cost_cap" | "disabled";
 
 export type AliceInvokeFacts = {
   triggerMessageId: number | null;

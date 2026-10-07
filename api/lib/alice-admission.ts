@@ -12,6 +12,7 @@ import { aliceDeclines, conversationParticipants, conversations, messages } from
 import { getDb } from "../queries/connection";
 import { loadAliceContext, type AliceContextMessage } from "./alice-context";
 import { ALICE_ADMISSION_MARKER, mentionsAlice, readAliceContextMessages } from "./alice-mention";
+import { planAliceKillSwitch, readAliceEnabled } from "./alice-enabled";
 import { deliverAliceReply } from "./alice-reply";
 import { log } from "./logger";
 import { emitToConversation, emitToMembers } from "./realtime";
@@ -177,7 +178,14 @@ export function selectOriginalAliceMention(
 export async function replyAfterAliceAdmit(
   input: { conversationId: number; cardId: number; aliceUserId: number },
   db: AdmissionDb = getDb(),
-): Promise<"replied" | "error" | "capped" | "no_trigger"> {
+): Promise<"replied" | "error" | "capped" | "no_trigger" | "disabled"> {
+  if (planAliceKillSwitch(readAliceEnabled()) === "skip") {
+    log.warn("alice admit skipped by kill switch", {
+      event: "alice.disabled",
+      conversationId: input.conversationId,
+    });
+    return "disabled";
+  }
   const rows = await db
     .select({
       id: messages.id,
