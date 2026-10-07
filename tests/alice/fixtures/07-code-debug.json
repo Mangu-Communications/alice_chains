@@ -1,0 +1,21 @@
+{
+  "id": "07-code-debug",
+  "index": 7,
+  "category": "code",
+  "conversationName": "Code desk",
+  "triggerUsername": "Riley",
+  "kind": "debug",
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "@alice debug this: const n = null; n.length",
+      "createdAt": "2026-10-07T12:02:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "That throws because null has no length. Guard before reading it.\n\n```ts\nconst n: string | null = null;\nconst size = n?.length ?? 0;\n```",
+  "expect": {
+    "behaviour": "code_block",
+    "minLength": 20
+  }
+}

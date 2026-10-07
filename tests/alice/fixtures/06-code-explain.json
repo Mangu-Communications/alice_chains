@@ -1,0 +1,21 @@
+{
+  "id": "06-code-explain",
+  "index": 6,
+  "category": "code",
+  "conversationName": "Code desk",
+  "triggerUsername": "Riley",
+  "kind": "explain",
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "@alice explain what Array.prototype.map does",
+      "createdAt": "2026-10-07T12:02:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "map builds a new array by calling a function on each item.\n\n```ts\nconst doubled = [1, 2, 3].map((n) => n * 2);\n```",
+  "expect": {
+    "behaviour": "code_block",
+    "minLength": 20
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "18-cjk-japanese",
+  "index": 18,
+  "category": "cjk",
+  "conversationName": "Tokyo desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "@alice 日本の首都はどこですか？",
+      "createdAt": "2026-10-07T12:06:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "日本の首都は東京です。",
+  "expect": {
+    "behaviour": "japanese",
+    "minLength": 8
+  }
+}

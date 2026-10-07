@@ -1,0 +1,21 @@
+{
+  "id": "17-cost-cap",
+  "index": 17,
+  "category": "cost_cap",
+  "conversationName": "Spend desk",
+  "triggerUsername": "Riley",
+  "spentUSD": "0.100000",
+  "capUSD": 0.1,
+  "messages": [
+    {
+      "username": "Riley",
+      "content": "@alice one more question about the budget",
+      "createdAt": "2026-10-07T12:05:00.000Z",
+      "trigger": true
+    }
+  ],
+  "expect": {
+    "behaviour": "cost_cap",
+    "httpStatus": 402
+  }
+}

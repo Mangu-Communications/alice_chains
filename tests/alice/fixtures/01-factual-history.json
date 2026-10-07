@@ -1,0 +1,25 @@
+{
+  "id": "01-factual-history",
+  "index": 1,
+  "category": "factual",
+  "conversationName": "History desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "Quick check before the stand-up.",
+      "createdAt": "2026-10-07T12:00:00.000Z"
+    },
+    {
+      "username": "Riley",
+      "content": "@alice When did the Roman Republic end?",
+      "createdAt": "2026-10-07T12:01:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "The Roman Republic is usually dated as ending in 27 BCE, when Octavian took the title Augustus and the principate began.",
+  "expect": {
+    "behaviour": "non_refusal",
+    "minLength": 40
+  }
+}

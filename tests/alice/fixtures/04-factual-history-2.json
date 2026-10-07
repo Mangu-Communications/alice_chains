@@ -1,0 +1,25 @@
+{
+  "id": "04-factual-history-2",
+  "index": 4,
+  "category": "factual",
+  "conversationName": "History desk",
+  "triggerUsername": "Riley",
+  "messages": [
+    {
+      "username": "Morgan",
+      "content": "Quick check before the stand-up.",
+      "createdAt": "2026-10-07T12:00:00.000Z"
+    },
+    {
+      "username": "Riley",
+      "content": "@alice Who wrote the Principia?",
+      "createdAt": "2026-10-07T12:01:00.000Z",
+      "trigger": true
+    }
+  ],
+  "offlineReply": "Isaac Newton wrote Philosophiae Naturalis Principia Mathematica, first published in 1687.",
+  "expect": {
+    "behaviour": "non_refusal",
+    "minLength": 40
+  }
+}
