@@ -1,8 +1,8 @@
 /**
- * A1-003. @alice mention detection and admission start (MASTER §7.3–§7.4).
+ * A1-003 / A1-007. @alice mention detection, admission start, and admitted reply.
  *
- * This slice does not call a model or enforce cost caps.
- * An admitted participant mention assembles §7.6 context and defers the reply.
+ * An admitted participant mention assembles §7.6 context and asks the provider.
+ * Cost caps are not enforced here. A missing ALICE_API_KEY is an error note.
  */
 
 import { and, eq, like } from "drizzle-orm";
@@ -10,6 +10,7 @@ import { aliceDeclines, conversationParticipants, conversations, messages } from
 import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import { loadAliceContext, type AliceContextMessage } from "./alice-context";
+import { deliverAliceReply } from "./alice-reply";
 import { readAliceUserId } from "./alice-user";
 import { log } from "./logger";
 
@@ -25,7 +26,7 @@ export type AliceTriggerAction = "ignore" | "start_admission" | "reply_deferred"
 
 export type AliceMentionResult = {
   action: AliceTriggerAction;
-  /** §7.6 step 1 window. Present only when a reply is deferred. No provider call. */
+  /** §7.6 step 1 window. Present when a reply was attempted. */
   context: AliceContextMessage[] | null;
 };
 
@@ -159,8 +160,8 @@ async function loadMentionContext(db: MentionDb, conversationId: number, aliceUs
 }
 
 /**
- * After a human message is stored. Never generates a reply. A failure here
- * must not fail the human send.
+ * After a human message is stored. An admitted mention may store Alice's reply.
+ * A failure here must not fail the human send.
  */
 export async function handleAliceMentionAfterSend(input: {
   conversationId: number;
@@ -208,6 +209,12 @@ export async function handleAliceMentionAfterSend(input: {
       conversationId: input.conversationId,
       joinedAt: ctx.joinedAt,
       limit: readAliceContextMessages(),
+    });
+    await deliverAliceReply({
+      conversationId: input.conversationId,
+      aliceUserId,
+      triggerContent: input.content,
+      context,
     });
     return { action, context };
   } catch (error) {

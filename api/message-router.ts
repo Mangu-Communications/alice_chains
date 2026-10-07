@@ -291,7 +291,7 @@ export const messageRouter = createRouter({
         hasAttachment: attachmentIds.length > 0,
       });
 
-      // A1-003. Mention detection and admission card only. No model call.
+      // A1-007. Mention detection, admission card, or an admitted provider reply.
       void handleAliceMentionAfterSend({
         conversationId: input.conversationId,
         content: input.content,
