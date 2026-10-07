@@ -469,3 +469,14 @@ export const aliceCostDaily = mysqlTable(
 
 export type AliceCostDaily = typeof aliceCostDaily.$inferSelect;
 export type InsertAliceCostDaily = typeof aliceCostDaily.$inferInsert;
+
+// A1-004. One decline per conversation. A later @alice must not open another
+// admission card (MASTER §7.3). Re-invite is a later card.
+export const aliceDeclines = mysqlTable("alice_declines", {
+  conversationId: bigint("conversationId", { mode: "number", unsigned: true }).primaryKey(),
+  declinedBy: bigint("declinedBy", { mode: "number", unsigned: true }).notNull(),
+  declinedAt: timestamp("declinedAt", { fsp: 3 }).defaultNow().notNull(),
+});
+
+export type AliceDecline = typeof aliceDeclines.$inferSelect;
+export type InsertAliceDecline = typeof aliceDeclines.$inferInsert;

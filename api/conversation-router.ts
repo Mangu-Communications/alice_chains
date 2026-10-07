@@ -12,6 +12,7 @@ import {
   isParticipant,
 } from "./lib/authz";
 import { emitToMembers } from "./lib/realtime";
+import { applyAliceAdmission } from "./lib/alice-admission";
 import {
   CONVERSATION_LIST_LIMIT,
   MAX_CONVERSATION_PARTICIPANTS,
@@ -619,6 +620,26 @@ export const conversationRouter = createRouter({
           )
         );
       return { level: input.level };
+    }),
+
+  // A1-004. Admit or decline the open admission card. No model call.
+  aliceDecision: authedQuery
+    .input(
+      z.object({
+        conversationId: z.number().int().positive(),
+        messageId: z.number().int().positive(),
+        decision: z.enum(["admit", "decline"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return applyAliceAdmission({
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        decision: input.decision,
+        actorId: ctx.user.id,
+        actorRole: ctx.user.role,
+        actorName: ctx.user.name,
+      });
     }),
 
   markAsRead: authedQuery

@@ -107,6 +107,10 @@ export type MessageThreadProps = {
   hasOlder?: boolean;
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
+  /** A1-004. Group owner or instance admin may decide an open admission card. */
+  canDecideAlice?: boolean;
+  aliceDecisionPending?: boolean;
+  onAliceDecision?: (messageId: number, decision: "admit" | "decline") => void;
 };
 
 export function MessageThread({
@@ -132,6 +136,9 @@ export function MessageThread({
   hasOlder = false,
   loadingOlder = false,
   onLoadOlder,
+  canDecideAlice = false,
+  aliceDecisionPending = false,
+  onAliceDecision,
 }: MessageThreadProps) {
   return (
     <ScrollArea className="flex-1 px-4">
@@ -265,6 +272,32 @@ export function MessageThread({
                       <p className="whitespace-pre-wrap break-words">
                         <Linkify text={msg.content} />
                       </p>
+                      {canDecideAlice &&
+                      onAliceDecision &&
+                      !msg.deletedAt &&
+                      msg.content.startsWith("Alice is an AI.") ? (
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={aliceDecisionPending}
+                            onClick={() => onAliceDecision(msg.id, "admit")}
+                          >
+                            Admit Alice
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={aliceDecisionPending}
+                            onClick={() => onAliceDecision(msg.id, "decline")}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      ) : null}
                       {!msg.deletedAt ? <MessageLinkPreview content={msg.content} /> : null}
                     </>
                   )}
