@@ -74,7 +74,7 @@ import {
 const JUMP_HIGHLIGHT_MS = 1600;
 
 export default function Chat() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeConversationId = searchParams.get("c")
@@ -391,6 +391,15 @@ export default function Chat() {
     onError: (error) => toast.error(error.message),
   });
 
+  const aliceDecision = trpc.conversation.aliceDecision.useMutation({
+    onSuccess: async () => {
+      await utils.conversation.list.invalidate();
+      if (activeConversationId != null) {
+        await utils.message.listByConversation.invalidate({ conversationId: activeConversationId });
+        await utils.conversation.getById.invalidate({ id: activeConversationId });
+      }
+    },
+  });
   const deleteMessage = trpc.message.delete.useMutation({
     onSuccess: () => {
       setPendingDeleteId(null);
@@ -1155,6 +1164,18 @@ export default function Chat() {
               loadingOlder={isFetchingNextPage}
               onLoadOlder={() => {
                 void fetchNextPage();
+              }}
+              canDecideAlice={
+                isAdmin || (user?.id != null && activeConversation?.createdBy === user.id)
+              }
+              aliceDecisionPending={aliceDecision.isPending}
+              onAliceDecision={(messageId, decision) => {
+                if (activeConversationId == null) return;
+                aliceDecision.mutate({
+                  conversationId: activeConversationId,
+                  messageId,
+                  decision,
+                });
               }}
             />
 

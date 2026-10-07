@@ -5,8 +5,8 @@
  * A participant mention only records that a reply is deferred to §7.6.
  */
 
-import { and, eq } from "drizzle-orm";
-import { conversationParticipants, conversations, messages } from "@db/schema";
+import { and, eq, like } from "drizzle-orm";
+import { aliceDeclines, conversationParticipants, conversations, messages } from "@db/schema";
 import { getDb } from "../queries/connection";
 import { insertMessage } from "../queries/messages";
 import { readAliceUserId } from "./alice-user";
@@ -133,13 +133,20 @@ async function loadMentionContext(db: MentionDb, conversationId: number, aliceUs
         eq(messages.conversationId, conversationId),
         eq(messages.senderId, aliceUserId),
         eq(messages.type, "system"),
+        like(messages.content, `${ALICE_ADMISSION_MARKER}%`),
       ),
     )
+    .limit(1);
+  const [decline] = await db
+    .select({ conversationId: aliceDeclines.conversationId })
+    .from(aliceDeclines)
+    .where(eq(aliceDeclines.conversationId, conversationId))
     .limit(1);
   return {
     conversationType: conversation?.type ?? "direct",
     aliceIsParticipant: membership != null,
     hasOpenAdmission: openCard != null,
+    declined: decline != null,
   };
 }
 
@@ -165,7 +172,7 @@ export async function handleAliceMentionAfterSend(input: {
         enabled,
         aliceUserId,
         aliceIsParticipant: ctx.aliceIsParticipant,
-        declined: false,
+        declined: ctx.declined,
         hasOpenAdmission: ctx.hasOpenAdmission,
         contextMessages: readAliceContextMessages(),
         providerLabel: readAliceProviderLabel(),
