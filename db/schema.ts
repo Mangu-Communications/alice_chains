@@ -7,6 +7,9 @@ import {
   timestamp,
   bigint,
   boolean,
+  date,
+  decimal,
+  int,
   index,
   uniqueIndex,
   foreignKey,
@@ -444,3 +447,26 @@ export const sessions = mysqlTable("sessions", {
 
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = typeof sessions.$inferInsert;
+
+// A1-001. Daily Alice spend. Instance rows use a null scopeId; conversation
+// rows use the conversation id. Unique on (scope, scopeId, date) matches §7.12.
+// MySQL treats NULL as distinct in that unique key, so the insert path must
+// look up the instance row before inserting rather than relying on the key alone.
+export const aliceCostDaily = mysqlTable(
+  "alice_cost_daily",
+  {
+    id: bigint("id", { mode: "number", unsigned: true }).autoincrement().primaryKey(),
+    date: date("date", { mode: "string" }).notNull(),
+    scope: mysqlEnum("scope", ["instance", "conversation"]).notNull(),
+    scopeId: bigint("scopeId", { mode: "number", unsigned: true }),
+    inputTokens: int("inputTokens", { unsigned: true }).notNull().default(0),
+    outputTokens: int("outputTokens", { unsigned: true }).notNull().default(0),
+    costUSD: decimal("costUSD", { precision: 10, scale: 6 }).notNull().default("0.000000"),
+    updatedAt: timestamp("updatedAt", { fsp: 3 }).default(sql`(now(3))`).notNull().$onUpdate(() => new Date()),
+  },
+  (t) => [uniqueIndex("alice_cost_daily_scope_date_uq").on(t.scope, t.scopeId, t.date)],
+);
+
+export type AliceCostDaily = typeof aliceCostDaily.$inferSelect;
+export type InsertAliceCostDaily = typeof aliceCostDaily.$inferInsert;
+
