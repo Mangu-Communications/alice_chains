@@ -10,11 +10,13 @@
  */
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNotNull, isNull, lt, ne } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import { createRouter, adminQuery, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import {
+  aliceCostDaily,
   attachments,
+  auditLogs,
   contacts,
   conversationParticipants,
   conversations,
@@ -27,6 +29,8 @@ import { audited, readAuditLog, readAuditLogFor, recordAudit } from "./lib/audit
 import { revokeAllSessionsForUser } from "./kimi/session";
 import { getIO } from "./socket";
 import { log } from "./lib/logger";
+import { buildAliceCostDashboard, aliceCostWindow } from "./lib/alice-cost-dashboard";
+import { readAliceConvDailyCapUsd, readAliceDailyCapUsd, utcCostDate, utcCostDay } from "./lib/alice-cost";
 
 /** How long a member has to change their mind before the purge runs. */
 export const DELETION_GRACE_PERIOD_DAYS = 30;
@@ -158,6 +162,54 @@ export const adminRouter = createRouter({
     .query(async ({ input }) =>
       input.userId ? readAuditLogFor(input.userId, input.limit) : readAuditLog(input.limit)
     ),
+
+  /**
+   * A1-012 / US-179. Rolling 30 UTC days from alice_cost_daily.
+   * Not audited: a dashboard refetch is not an administrative action.
+   * Model totals come from alice_invoke detail, which already stores the version.
+   */
+  aliceCosts: adminQuery.query(async () => {
+    const today = utcCostDate();
+    const window = aliceCostWindow(today);
+    const since = utcCostDay(window[0]!);
+    const db = getDb();
+    const rows = await db.select().from(aliceCostDaily).where(gte(aliceCostDaily.date, since));
+    const conversationIds = [
+      ...new Set(
+        rows
+          .filter((row) => row.scope === "conversation" && row.scopeId != null)
+          .map((row) => row.scopeId as number),
+      ),
+    ];
+    const named =
+      conversationIds.length === 0
+        ? []
+        : await db
+            .select({ id: conversations.id, name: conversations.name })
+            .from(conversations)
+            .where(inArray(conversations.id, conversationIds));
+    const invokes = await db
+      .select({ detail: auditLogs.detail })
+      .from(auditLogs)
+      .where(and(eq(auditLogs.action, "alice_invoke"), gte(auditLogs.createdAt, since)));
+    return {
+      instanceCapUSD: readAliceDailyCapUsd(),
+      convCapUSD: readAliceConvDailyCapUsd(),
+      dashboard: buildAliceCostDashboard({
+        today,
+        rows: rows.map((row) => ({
+          date: row.date,
+          scope: row.scope,
+          scopeId: row.scopeId,
+          costUSD: row.costUSD,
+          inputTokens: row.inputTokens,
+          outputTokens: row.outputTokens,
+        })),
+        names: Object.fromEntries(named.map((row) => [row.id, row.name])),
+        invokes,
+      }),
+    };
+  }),
 
   // ─── Data rights, for the member themselves ─────────────────────────────
 
