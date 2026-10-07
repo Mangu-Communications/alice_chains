@@ -347,7 +347,7 @@ export function initSocket(server: HttpServer) {
               hasAttachment: false,
             });
 
-            // A1-003. Mention detection and admission card only. No model call.
+            // A1-007. Mention detection, admission card, or an admitted provider reply.
             void handleAliceMentionAfterSend({
               conversationId: data.conversationId,
               content: data.content,
