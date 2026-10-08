@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 import type { Message } from "@db/schema";
 
 interface ServerToClientEvents {
-  newMessage: (message: Message & { tempId?: string }) => void;
+  newMessage: (message: Message & { tempId?: string; clientMessageId?: string | null }) => void;
   conversationUpdated: (data: {
     conversationId: number;
     lastMessage: Message;
@@ -88,6 +88,7 @@ interface ClientToServerEvents {
     fileUrl?: string;
     replyToId?: number;
     tempId?: string;
+    clientMessageId?: string;
   }) => void;
   markAsRead: (data: { messageIds: number[]; conversationId: number }) => void;
   typing: (data: { conversationId: number; isTyping: boolean }) => void;
@@ -187,6 +188,7 @@ export function useSocket() {
       fileUrl?: string;
       replyToId?: number;
       tempId?: string;
+      clientMessageId?: string;
     }) => {
       socketRef.current?.emit("sendMessage", data);
     },
@@ -208,7 +210,7 @@ export function useSocket() {
   );
 
   const onNewMessage = useCallback(
-    (handler: (message: Message & { tempId?: string }) => void) => {
+    (handler: (message: Message & { tempId?: string; clientMessageId?: string | null }) => void) => {
       socketRef.current?.on("newMessage", handler);
       return () => {
         socketRef.current?.off("newMessage", handler);

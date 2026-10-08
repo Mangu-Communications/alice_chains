@@ -273,6 +273,7 @@ export const messageRouter = createRouter({
         type: z.enum(["text", "image", "file"]).default("text"),
         replyToId: z.number().optional(),
         attachmentIds: z.array(z.number().int().positive()).max(10).optional(),
+        clientMessageId: z.string().trim().min(1).max(64).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -300,7 +301,11 @@ export const messageRouter = createRouter({
         content: input.content,
         type: input.type,
         replyToId: input.replyToId,
+        clientMessageId: input.clientMessageId,
       });
+      if (stored && "replayed" in stored && stored.replayed) {
+        return { ...stored, isMine: true };
+      }
 
       // Bound after the message exists, because `attachments.messageId` has a
       // foreign key. Each binding re-checks ownership and readiness, so one
