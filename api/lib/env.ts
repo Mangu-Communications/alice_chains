@@ -106,6 +106,34 @@ const envSchema = z.object({
     (value) => (value === "" || value == null ? undefined : value),
     z.coerce.number().int().min(1).max(3650).default(30),
   ),
+
+  // P4-004 / US-188. Optional transactional mail for the erasure confirmation.
+  // Empty host or from means mail is off. Do not invent a password. A half
+  // pair fails boot so an operator does not think notices are going out.
+  SMTP_HOST: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.string().min(1).optional()
+  ),
+  SMTP_PORT: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().min(1).max(65535).default(587)
+  ),
+  SMTP_SECURE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  SMTP_USER: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.string().min(1).optional()
+  ),
+  SMTP_PASS: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.string().min(1).optional()
+  ),
+  SMTP_FROM: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.string().min(1).optional()
+  ),
 });
 
 /**
@@ -184,6 +212,20 @@ if (env.STORAGE_DRIVER === "s3") {
     );
   }
 }
+if (Boolean(env.SMTP_HOST) !== Boolean(env.SMTP_FROM)) {
+  throw new Error(
+    "SMTP_HOST and SMTP_FROM must be set together. " +
+      "Leave both empty to skip erasure confirmation email."
+  );
+}
+
+if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASS)) {
+  throw new Error(
+    "SMTP_USER and SMTP_PASS must be set together. " +
+      "Leave both empty for a relay that does not require AUTH."
+  );
+}
+
 export const isProduction = env.NODE_ENV === "production";
 
 export function getPort() {

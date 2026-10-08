@@ -32,6 +32,7 @@ import { log } from "./lib/logger";
 import { buildAliceCostDashboard, aliceCostWindow } from "./lib/alice-cost-dashboard";
 import { readAliceConvDailyCapUsd, readAliceDailyCapUsd, utcCostDate, utcCostDay } from "./lib/alice-cost";
 import { readAliceEnabled } from "./lib/alice-enabled";
+import { notifyErasureRequested } from "./lib/erasure-mail";
 
 /** How long a member has to change their mind before the purge runs. */
 export const DELETION_GRACE_PERIOD_DAYS = 30;
@@ -302,6 +303,9 @@ export const adminRouter = createRouter({
    * socket. The purge runs after a grace period, so an account deleted in anger
    * or by mistake can still be recovered — an irreversible action taken
    * instantly is a support burden, not a privacy feature.
+   *
+   * P4-004 sends an SMTP confirmation when the operator configured mail.
+   * Missing mail does not refuse the request. This does not purge.
    */
   requestDeletion: authedQuery.mutation(async ({ ctx }) => {
     const userId = ctx.user.id;
@@ -320,7 +324,19 @@ export const adminRouter = createRouter({
         const purgeAt = new Date(
           Date.now() + DELETION_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000
         );
-        return { requested: true, purgeAt, graceDays: DELETION_GRACE_PERIOD_DAYS };
+        const notice = await notifyErasureRequested({
+          to: ctx.user.email,
+          name: ctx.user.name,
+          userId,
+          purgeAt,
+          graceDays: DELETION_GRACE_PERIOD_DAYS,
+        });
+        return {
+          requested: true,
+          purgeAt,
+          graceDays: DELETION_GRACE_PERIOD_DAYS,
+          notice: notice.status,
+        };
       }
     );
   }),
