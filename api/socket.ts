@@ -301,6 +301,7 @@ export function initSocket(server: HttpServer) {
               type: data.type ?? "text",
               fileUrl: data.fileUrl,
               replyToId: data.replyToId,
+              clientMessageId: data.clientMessageId,
             });
           } catch (error) {
             socket.emit("messageError", {
@@ -327,11 +328,20 @@ export function initSocket(server: HttpServer) {
             .limit(1);
 
           if (message) {
-            // Broadcast to all participants in the conversation
-            io?.to(`conv_${data.conversationId}`).emit("newMessage", {
+            const wire = {
               ...message,
               tempId: data.tempId,
-            });
+              clientMessageId: message.clientMessageId ?? data.clientMessageId,
+            };
+            // P4-002. A replay already reached the room. Echo the stored row
+            // to the sender so the outbox can reconcile, and do not notify
+            // or invoke Alice again.
+            if ("replayed" in message && message.replayed) {
+              socket.emit("newMessage", wire);
+              return;
+            }
+            // Broadcast to all participants in the conversation
+            io?.to(`conv_${data.conversationId}`).emit("newMessage", wire);
 
             // Also notify all participants directly
             const participants = await db

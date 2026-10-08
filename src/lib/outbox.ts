@@ -14,12 +14,13 @@
  * Exactly-once is the whole point, so it is worth stating how it is achieved:
  * every send carries a client-generated `tempId`, the server echoes it back on
  * the resulting `newMessage`, and an entry is removed when its `tempId` returns.
- * A replay that the server already applied is therefore acknowledged rather
- * than duplicated.
+ * `clientMessageId` is the durable outbox key (P4-002): retries emit the same
+ * id, and the server stores one row.
  */
 
 export interface OutboxEntry {
   tempId: string;
+  clientMessageId: string;
   conversationId: number;
   content: string;
   replyToId?: number;
@@ -51,6 +52,15 @@ export class Outbox {
     return `t-${Date.now().toString(36)}-${this.sequence}`;
   }
 
+  /** Stable for the life of one queued send, including retries. */
+  nextClientMessageId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    this.sequence += 1;
+    return `cm-${Date.now().toString(36)}-${this.sequence}`;
+  }
+
   subscribe(listener: OutboxListener): () => void {
     this.listeners.add(listener);
     listener(this.snapshot());
@@ -76,10 +86,12 @@ export class Outbox {
     content: string;
     replyToId?: number;
     tempId?: string;
+    clientMessageId?: string;
     now?: number;
   }): OutboxEntry {
     const entry: OutboxEntry = {
       tempId: input.tempId ?? this.nextTempId(),
+      clientMessageId: input.clientMessageId ?? this.nextClientMessageId(),
       conversationId: input.conversationId,
       content: input.content,
       replyToId: input.replyToId,

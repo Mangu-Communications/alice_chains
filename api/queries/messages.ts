@@ -21,6 +21,8 @@ export interface NewMessage {
   /** Deprecated by F-4's `attachments` table; kept until it is dropped. */
   fileUrl?: string | null;
   replyToId?: number | null;
+  /** P4-002. Stable client outbox id. Same id stores one row. */
+  clientMessageId?: string | null;
 }
 
 /**
@@ -60,6 +62,39 @@ export async function assertReplyTargetIsInConversation(
   if (!parent) throw new InvalidReplyError();
 }
 
+
+function isDuplicateKey(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const code = (current as { code?: string; errno?: number }).code;
+    const errno = (current as { errno?: number }).errno;
+    if (code === "ER_DUP_ENTRY" || errno === 1062) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+async function findByClientMessageId(
+  conversationId: number,
+  senderId: number,
+  clientMessageId: string
+) {
+  const [existing] = await getDb()
+    .select()
+    .from(messages)
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.senderId, senderId),
+        eq(messages.clientMessageId, clientMessageId)
+      )
+    )
+    .limit(1);
+  return existing;
+}
+
 export async function insertMessage(input: NewMessage) {
   if (input.replyToId != null) {
     // Checked before the transaction opens: this is a read, and holding a
@@ -74,29 +109,52 @@ export async function insertMessage(input: NewMessage) {
     }
   }
 
-  return getDb().transaction(async (tx) => {
-    const [result] = await tx.insert(messages).values({
-      conversationId: input.conversationId,
-      senderId: input.senderId,
-      content: input.content,
-      type: input.type ?? "text",
-      fileUrl: input.fileUrl ?? undefined,
-      replyToId: input.replyToId ?? undefined,
+  const clientMessageId = input.clientMessageId?.trim() || null;
+  if (clientMessageId) {
+    const existing = await findByClientMessageId(
+      input.conversationId,
+      input.senderId,
+      clientMessageId
+    );
+    if (existing) return { ...existing, replayed: true as const };
+  }
+
+  try {
+    return await getDb().transaction(async (tx) => {
+      const [result] = await tx.insert(messages).values({
+        conversationId: input.conversationId,
+        senderId: input.senderId,
+        content: input.content,
+        type: input.type ?? "text",
+        fileUrl: input.fileUrl ?? undefined,
+        replyToId: input.replyToId ?? undefined,
+        clientMessageId,
+      });
+
+      const messageId = Number(result.insertId);
+
+      await tx
+        .update(conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(conversations.id, input.conversationId));
+
+      const [stored] = await tx
+        .select()
+        .from(messages)
+        .where(eq(messages.id, messageId))
+        .limit(1);
+
+      return stored;
     });
-
-    const messageId = Number(result.insertId);
-
-    await tx
-      .update(conversations)
-      .set({ updatedAt: new Date() })
-      .where(eq(conversations.id, input.conversationId));
-
-    const [stored] = await tx
-      .select()
-      .from(messages)
-      .where(eq(messages.id, messageId))
-      .limit(1);
-
-    return stored;
-  });
+  } catch (error) {
+    if (clientMessageId && isDuplicateKey(error)) {
+      const existing = await findByClientMessageId(
+        input.conversationId,
+        input.senderId,
+        clientMessageId
+      );
+      if (existing) return { ...existing, replayed: true as const };
+    }
+    throw error;
+  }
 }

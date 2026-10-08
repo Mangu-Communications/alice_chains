@@ -693,6 +693,7 @@ export default function Chat() {
         type: "text",
         replyToId: replyingTo?.id,
         tempId: entry.tempId,
+        clientMessageId: entry.clientMessageId,
       });
     }
 
@@ -717,6 +718,7 @@ export default function Chat() {
         type: "text",
         replyToId: entry.replyToId,
         tempId: entry.tempId,
+        clientMessageId: entry.clientMessageId,
       });
     }
   }, [socket.isConnected, socket]);

@@ -120,6 +120,13 @@
       "when": 1787697200000,
       "tag": "0016_alice_message_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1787697600000,
+      "tag": "0017_client_message_id",
+      "breakpoints": true
     }
   ]
 }

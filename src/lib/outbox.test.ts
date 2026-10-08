@@ -138,4 +138,14 @@ describe("the outbox (P-UX-2)", () => {
 
     expect(outbox.snapshot()[0].content).toBe("original");
   });
+
+  it("keeps one clientMessageId for the life of a queued send", () => {
+    const entry = outbox.enqueue({
+      conversationId: 1,
+      content: "retry me",
+      clientMessageId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(entry.clientMessageId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(outbox.snapshot()[0].clientMessageId).toBe(entry.clientMessageId);
+  });
 });

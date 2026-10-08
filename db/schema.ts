@@ -146,6 +146,9 @@ export const messages = mysqlTable(
     type: mysqlEnum("type", ["text", "image", "file", "system"]).default("text").notNull(),
     fileUrl: text("fileUrl"),
     replyToId: bigint("replyToId", { mode: "number", unsigned: true }),
+    // P4-002. Client outbox key. Null for system/Alice rows. Unique with
+    // conversationId and senderId so a double-tap stores one message.
+    clientMessageId: varchar("clientMessageId", { length: 64 }),
     isEdited: boolean("isEdited").default(false).notNull(),
     // F-2. Deletion is soft: the row survives as a tombstone so a reply chain
     // keeps its shape and clients can render "message deleted" without a full
@@ -170,6 +173,7 @@ export const messages = mysqlTable(
     ),
     index("messages_sender_idx").on(t.senderId), // IX-6
     index("messages_replyTo_idx").on(t.replyToId),
+    uniqueIndex("messages_client_message_uq").on(t.conversationId, t.senderId, t.clientMessageId),
     // P-SEARCH-1. A FULLTEXT index on the body. Drizzle has no builder for
     // one, so it is added by hand in migration 0009 and declared here only as
     // a comment — see docs/DATA_MODEL.md. `content` stays a plain `text`

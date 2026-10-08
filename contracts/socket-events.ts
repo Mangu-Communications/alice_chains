@@ -35,6 +35,8 @@ export const sendMessageSchema = z.object({
   // Client-generated, echoed back for optimistic reconciliation. Bounded
   // because it is client-controlled and travels back out to other clients.
   tempId: z.string().max(64).optional(),
+  // P4-002. Stable outbox key. A second send with the same id stores one row.
+  clientMessageId: z.string().trim().min(1).max(64).optional(),
 });
 
 export const markAsReadSchema = z.object({
