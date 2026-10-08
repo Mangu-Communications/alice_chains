@@ -19,6 +19,7 @@ import { OAUTH_CALLBACK_PATH, OAUTH_LOGIN_PATH } from "@contracts/oauth";
 import { initSocket } from "./socket";
 import { consume, Limits, startRateLimitSweep } from "./lib/rate-limit";
 import { startSoftDeleteCleanup } from "./lib/soft-delete-cleanup";
+import { startSessionPrune } from "./lib/session-prune";
 import { Readable } from "node:stream";
 import {
   readLocalObject,
@@ -353,6 +354,7 @@ export default app;
 if (env.NODE_ENV !== "test") {
   startRateLimitSweep();
   startSoftDeleteCleanup();
+  startSessionPrune();
 
   const isProd = env.NODE_ENV === "production";
 

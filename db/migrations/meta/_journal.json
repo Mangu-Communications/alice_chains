@@ -134,6 +134,13 @@
       "when": 1787698000000,
       "tag": "0018_soft_delete_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1787698400000,
+      "tag": "0019_session_pruning",
+      "breakpoints": true
     }
   ]
 }

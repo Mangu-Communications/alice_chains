@@ -433,23 +433,33 @@ export type InsertContact = typeof contacts.$inferInsert;
 // copy taken beforehand stayed valid on every other device for the full seven
 // days. This table is the revocation point. The payload carries `sid`; the
 // server resolves it here on every request.
-export const sessions = mysqlTable("sessions", {
-  // A 32-byte random value, base64url — 43 characters.
-  id: varchar("id", { length: 43 }).primaryKey(),
-  userId: bigint("userId", { mode: "number", unsigned: true })
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  // Drives the 24-hour idle expiry. Refreshed at most once every 5 minutes so
-  // an active session does not cost a write on every request.
-  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-  // Set by logout and by administrative deactivation (S-18). Non-null means the
-  // session is dead on every device, immediately.
-  revokedAt: timestamp("revokedAt"),
-  // A hash, never the raw header: useful for "you signed in from a new device"
-  // without retaining a fingerprint.
-  uaHash: varchar("uaHash", { length: 64 }),
-});
+export const sessions = mysqlTable(
+  "sessions",
+  {
+    // A 32-byte random value, base64url — 43 characters.
+    id: varchar("id", { length: 43 }).primaryKey(),
+    userId: bigint("userId", { mode: "number", unsigned: true })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    // Drives the 24-hour idle expiry. Refreshed at most once every 5 minutes so
+    // an active session does not cost a write on every request.
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+    // Set by logout and by administrative deactivation (S-18). Non-null means the
+    // session is dead on every device, immediately.
+    revokedAt: timestamp("revokedAt"),
+    // A hash, never the raw header: useful for "you signed in from a new device"
+    // without retaining a fingerprint.
+    uaHash: varchar("uaHash", { length: 64 }),
+  },
+  (t) => [
+    // P4-005 / US-198. MASTER IX-4 names expiresAt; this schema has no such
+    // column. Absolute expiry is createdAt plus Session.maxAgeSeconds.
+    index("sessions_created_at_idx").on(t.createdAt),
+    index("sessions_last_seen_at_idx").on(t.lastSeenAt),
+    index("sessions_revoked_at_idx").on(t.revokedAt),
+  ]
+);
 
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = typeof sessions.$inferInsert;
