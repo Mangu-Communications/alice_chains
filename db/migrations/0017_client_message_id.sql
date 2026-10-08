@@ -3,7 +3,5 @@
 -- NULL stays allowed so system and Alice inserts are not part of the outbox key.
 -- MySQL unique indexes permit multiple NULLs.
 ALTER TABLE `messages`
-  ADD COLUMN `clientMessageId` varchar(64) NULL;
-
-CREATE UNIQUE INDEX `messages_client_message_uq`
-  ON `messages` (`conversationId`, `senderId`, `clientMessageId`);
+  ADD COLUMN `clientMessageId` varchar(64) NULL,
+  ADD UNIQUE INDEX `messages_client_message_uq` (`conversationId`, `senderId`, `clientMessageId`);
