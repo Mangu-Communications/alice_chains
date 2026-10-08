@@ -14,7 +14,7 @@
  *   3. the session row exists, is not revoked, and was used within 24 hours.
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { Session } from "@contracts/constants";
 import { sessions } from "@db/schema";
 import { getDb } from "../queries/connection";
@@ -164,10 +164,53 @@ export async function revokeAllSessionsForUser(userId: number): Promise<void> {
 /**
  * Delete rows that can no longer authenticate anything.
  *
- * Nothing schedules this yet; S-15 owns the operational job. It lives here so
- * the table has a defined retention story rather than growing without bound.
+ * Absolute expiry is createdAt plus the 7-day maximum. Idle expiry is
+ * lastSeenAt plus 24 hours. A revoked row is already dead. P4-005 schedules
+ * this daily from boot. Not account erasure.
  */
-export async function pruneExpiredSessions(now = new Date()): Promise<void> {
-  const cutoff = new Date(now.getTime() - Session.maxAgeSeconds * 1000);
-  await getDb().delete(sessions).where(lt(sessions.createdAt, cutoff));
+export const SESSION_PRUNE_BATCH = 500;
+
+export function absoluteExpiryCutoff(now: Date): Date {
+  return new Date(now.getTime() - Session.maxAgeSeconds * 1000);
+}
+
+export function idleExpiryCutoff(now: Date): Date {
+  return new Date(now.getTime() - Session.idleMaxAgeSeconds * 1000);
+}
+
+export function sessionRowIsExpired(
+  row: { createdAt: Date; lastSeenAt: Date; revokedAt: Date | null },
+  now: Date,
+): boolean {
+  if (row.revokedAt) return true;
+  if (row.createdAt.getTime() < absoluteExpiryCutoff(now).getTime()) return true;
+  if (row.lastSeenAt.getTime() < idleExpiryCutoff(now).getTime()) return true;
+  return false;
+}
+
+export async function pruneExpiredSessions(now = new Date()): Promise<number> {
+  const db = getDb();
+  const absolute = absoluteExpiryCutoff(now);
+  const idle = idleExpiryCutoff(now);
+  const [aged, idleRows, revoked] = await Promise.all([
+    db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(lt(sessions.createdAt, absolute))
+      .limit(SESSION_PRUNE_BATCH),
+    db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(lt(sessions.lastSeenAt, idle))
+      .limit(SESSION_PRUNE_BATCH),
+    db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(isNotNull(sessions.revokedAt))
+      .limit(SESSION_PRUNE_BATCH),
+  ]);
+  const ids = [...new Set([...aged, ...idleRows, ...revoked].map((row) => row.id))];
+  if (ids.length === 0) return 0;
+  await db.delete(sessions).where(inArray(sessions.id, ids));
+  return ids.length;
 }
