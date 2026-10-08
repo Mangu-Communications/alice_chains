@@ -99,6 +99,13 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+
+  // P4-003. Days before a tombstone loses leftover body and attachment bytes.
+  // Empty uses 30. The message row stays. Not a secret.
+  SOFT_DELETE_RETENTION_DAYS: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().min(1).max(3650).default(30),
+  ),
 });
 
 /**

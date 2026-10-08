@@ -172,6 +172,8 @@ export const messages = mysqlTable(
       t.createdAt
     ),
     index("messages_sender_idx").on(t.senderId), // IX-6
+    // P4-003. The cleanup job scans tombstones by deletedAt, not by conversation.
+    index("messages_deleted_at_idx").on(t.deletedAt),
     index("messages_replyTo_idx").on(t.replyToId),
     uniqueIndex("messages_client_message_uq").on(t.conversationId, t.senderId, t.clientMessageId),
     // P-SEARCH-1. A FULLTEXT index on the body. Drizzle has no builder for
